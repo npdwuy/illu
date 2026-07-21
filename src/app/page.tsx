@@ -158,6 +158,7 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     title: "Cột Mốc Vàng Son",
     tagline: "Thập kỷ ánh sáng - Vạn dấu ấn khắc sâu",
     description: "Hành trình bền bỉ đầy tự hào từ một nhóm đam mê nhỏ trở thành biểu tượng thiết kế thị giác của giới trẻ.",
+    stats: [{ label: "Ấn bản phát hành", value: "1.000 cuốn" }, { label: "Quy mô thành viên", value: "150+" }],
     images: [{ id: "img-2025-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Chuẩn bị cho đại lễ kỷ niệm hành trình 10 năm" }],
     highlights: ["Sách ảnh kỷ niệm 'Illustris Decennium' chính thức phát hành"]
   },

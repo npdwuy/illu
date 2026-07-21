@@ -1,0 +1,13 @@
+{
+  "images": [],
+  "wishes": [
+    {
+      "id": "test-1",
+      "name": "Test Bot",
+      "role": "Tester",
+      "content": "Hello world!",
+      "date": "17/07/2026"
+    }
+  ],
+  "comments": []
+}

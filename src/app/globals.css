@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: 'Perandory';
+  src: url('/Perandory-Font/PERSONAL/PERANDORY/Perandory-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Perandory-Condensed';
+  src: url('/Perandory-Font/PERSONAL/PERANDORY/Perandory-Condensed.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: var(--font-condensed), 'Barlow Condensed', sans-serif;
+  --font-condensed: var(--font-condensed), 'Barlow Condensed', sans-serif;
+  --font-perandory: var(--font-perandory), 'Perandory', sans-serif;
+  --font-display: var(--font-condensed), 'Barlow Condensed', sans-serif;
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+
+  --color-bg-dark: #000000;
+  --color-bg-dark-blue: #020205;
+  --color-accent-blue: #2563eb;
+  --color-accent-blue-hover: #1d4ed8;
+  --color-accent-cyan: #06b6d4;
+  --color-text-white: #ffffff;
+  --color-text-gray: #94a3b8;
+  --color-text-dim: #64748b;
+  --color-border-dark: rgba(255, 255, 255, 0.08);
+}
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --app-scale: 1;
+}
+
+html, body {
+  touch-action: pan-x pan-y;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+@media (min-width: 1024px) {
+  .adaptive-scale-wrapper {
+    zoom: var(--app-scale, 1);
+  }
+}
+
+/* Thích ứng cho màn hình có chiều cao thấp (Desktop/Laptop HD) */
+@media (max-height: 800px) and (min-width: 1024px) {
+  .compact-height-padding {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+}
+
+
+.font-perandory {
+  font-family: 'Perandory', var(--font-perandory), sans-serif;
+}
+
+.font-condensed {
+  font-family: var(--font-condensed), 'Barlow Condensed', sans-serif;
+}
+
+/* Subtle Film Grain Noise Texture */
+.noise-overlay::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  opacity: 0.035;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}

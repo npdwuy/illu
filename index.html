@@ -1,0 +1,884 @@
+VS CODE:
+'use client';
+
+
+import React, { useState, useEffect } from 'react';
+import {
+  Camera,
+  Upload,
+  Heart,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Users,
+  Trash2,
+  Calendar,
+  Layers,
+  MessageCircle,
+  Image as ImageIcon,
+  X
+} from 'lucide-react';
+
+
+interface YearEvent {
+  year: number;
+  title: string;
+  tagline: string;
+  description: string;
+  stats: { label: string; value: string }[];
+  images: {
+    id: string;
+    url: string;
+    caption: string;
+  }[];
+  highlights: string[];
+}
+
+
+interface RecapImage {
+  id: string;
+  url: string;
+  caption: string;
+  likes: number;
+  time: string;
+}
+
+
+interface Wish {
+  id: string;
+  name: string;
+  role: string;
+  content: string;
+  date: string;
+}
+
+
+interface TimelineComment {
+  id: string;
+  year: number;
+  name: string;
+  content: string;
+  imageUrl?: string;
+  date: string;
+}
+
+
+const INITIAL_TIMELINE_DATA: YearEvent[] = [
+  {
+    year: 2016,
+    title: "Những Bước Chân Đầu Tiên",
+    tagline: "Khởi đầu của những người mộng mơ",
+    description: "Năm thành lập chính thức câu lạc bộ nhiếp ảnh Illustris với những thành viên thế hệ Gen 1 nhiệt huyết.",
+    stats: [{ label: "Thành viên", value: "12 nhân sự" }, { label: "Dự án", value: "02 bộ ảnh" }],
+    images: [
+      { id: "img-2016-1", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Buổi gặp mặt đầu tiên thiết lập CLB" }
+    ],
+    highlights: ["Chính thức ra mắt thương hiệu Illustris", "Tổ chức phototrip đầu tiên"]
+  },
+  {
+    year: 2017,
+    title: "Định Hình Phong Cách",
+    tagline: "Đi tìm bản sắc riêng biệt",
+    description: "Illustris bắt đầu thử nghiệm các concept chụp ảnh nghệ thuật đường phố và chân dung có chiều sâu.",
+    stats: [{ label: "Triển lãm", value: "1 quy mô nhỏ" }, { label: "Kho tư liệu", value: "500+ shot hình" }],
+    images: [{ id: "img-2017-1", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Thử nghiệm ảnh phim trắng đen" }],
+    highlights: ["Tổ chức workshop ánh sáng tự nhiên"]
+  },
+  {
+    year: 2018,
+    title: "Chuyên Nghiệp Hóa Studio",
+    tagline: "Chinh phục ánh sáng nhân tạo",
+    description: "Đầu tư mạnh mẽ vào hệ thống phòng Studio chuyên nghiệp, làm chủ các kỹ thuật tạo khối thương mại.",
+    stats: [{ label: "Diện tích", value: "120m2 hiện đại" }, { label: "Thiết bị", value: "Dàn đèn studio mới" }],
+    images: [{ id: "img-2018-1", url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", caption: "Setup phòng chụp Studio chuyên nghiệp tại Q2" }],
+    highlights: ["Mở rộng mảng chụp thương mại cho nhãn hàng"]
+  },
+  {
+    year: 2019,
+    title: "Vươn Mình Ra Biển Lớn",
+    tagline: "Đồng hành cùng các sự kiện quy mô",
+    description: "Illustris trở thành đối tác bảo trợ hình ảnh chính thức cho nhiều chiến dịch lớn của giới trẻ.",
+    stats: [{ label: "Sự kiện", value: "15+ chương trình" }, { label: "Khách hàng", value: "Đại học lớn" }],
+    images: [{ id: "img-2019-1", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Tác nghiệp tại festival âm nhạc lớn" }],
+    highlights: ["Đội ngũ nâng cấp lên 45 thành viên hoạt động"]
+  },
+  {
+    year: 2020,
+    title: "Thử Thách & Chuyển Đổi Số",
+    tagline: "Sáng tạo không ranh giới",
+    description: "Vượt qua giai đoạn giãn cách bằng các dự án ảnh concept tại nhà và các buổi phê bình ảnh online.",
+    stats: [{ label: "Project Online", value: "05 chiến dịch" }, { label: "Tương tác", value: "+200% social" }],
+    images: [{ id: "img-2020-1", url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80", caption: "Bộ ảnh góc nhìn qua ô cửa sổ gây bão mạng" }],
+    highlights: ["Ra mắt chuỗi postcard gây quỹ cộng đồng"]
+  },
+  {
+    year: 2021,
+    title: "Trở Lại Mạnh Mẽ",
+    tagline: "Bùng nổ năng lượng nghệ thuật",
+    description: "Tái khởi động với năng lượng nhân đôi, tập trung vào nhiếp ảnh tư liệu đời sống và con người.",
+    stats: [{ label: "Chuyến đi", value: "3 miền đất nước" }, { label: "Tư liệu", value: "20.000+ file ảnh" }],
+    images: [{ id: "img-2021-1", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", caption: "Hành trình săn ảnh vùng cao Tây Bắc" }],
+    highlights: ["Bộ ảnh phóng sự đạt giải thưởng sáng tạo trẻ"]
+  },
+  {
+    year: 2022,
+    title: "Mở Rộng Không Gian Thị Giác",
+    tagline: "Tích hợp đồ họa và nhiếp ảnh",
+    description: "Illustris không chỉ chụp ảnh mà còn kết hợp thiết kế đồ họa 2D/3D để tạo ra các tác phẩm Digital Art.",
+    stats: [{ label: "Digital Art", value: "30 tác phẩm" }, { label: "Designer", value: "10 nhân sự mới" }],
+    images: [{ id: "img-2022-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Triển lãm kết hợp công nghệ chiếu sáng nghệ thuật" }],
+    highlights: ["Tái định vị thương hiệu thành Câu lạc bộ Sáng tạo Thị giác"]
+  },
+  {
+    year: 2023,
+    title: "Kết Nối Các Thế Hệ",
+    tagline: "Văn hóa gia đình bền chặt",
+    description: "Xây dựng mạng lưới cựu thành viên vững chắc, hỗ trợ định hướng nghề nghiệp cho các thế hệ đi sau.",
+    stats: [{ label: "Mạng lưới Alumni", value: "80+ anh chị" }, { label: "Mentorship", value: "10 cặp đôi" }],
+    images: [{ id: "img-2023-1", url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80", caption: "Đêm tiệc kết nối thường niên ấm cúng" }],
+    highlights: ["Ra mắt quỹ hỗ trợ đồ án tốt nghiệp cho thành viên CLB"]
+  },
+  {
+    year: 2024,
+    title: "Tiệm Cận Tiêu Chuẩn Quốc Tế",
+    tagline: "Nâng tầm tư duy nhiếp ảnh thương mại",
+    description: "Cập nhật các xu hướng thiết bị hiện đại hàng đầu và quy trình làm việc chuẩn các agency lớn.",
+    stats: [{ label: "Thiết bị nâng cấp", value: "Hệ máy Medium Format" }, { label: "Dự án lớn", value: "12 dự án thương mại" }],
+    images: [{ id: "img-2024-1", url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80", caption: "Sản xuất hình ảnh chất lượng cao trong môi trường studio" }],
+    highlights: ["Workshop cùng nhiếp ảnh gia quốc tế"]
+  },
+  {
+    year: 2025,
+    title: "Cột Mốc Vàng Son",
+    tagline: "Thập kỷ ánh sáng - Vạn dấu ấn khắc sâu",
+    description: "Hành trình bền bỉ đầy tự hào từ một nhóm đam mê nhỏ trở thành biểu tượng thiết kế thị giác của giới trẻ.",
+    stats: [{ label: "Dự án tích lũy", value: "800+ hoàn thành" }, { label: "Thành viên tổng", value: "120 nhân sự" }],
+    images: [{ id: "img-2025-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Chuẩn bị cho đại lễ kỷ niệm hành trình 10 năm" }],
+    highlights: ["Sách ảnh kỷ niệm 'Illustris Decennium' chính thức phát hành"]
+  },
+  {
+    year: 2026,
+    title: "Chương Mới - Tương Lai Xanh",
+    tagline: "Nhiếp ảnh bền vững, nhân văn hơn",
+    description: "Nhìn về tương lai phía trước, Illustris tiếp tục dẫn đầu xu hướng nhiếp ảnh gắn liền với trách nhiệm xã hội và môi trường.",
+    stats: [{ label: "Chiến dịch sinh thái", value: "5 dự án lớn" }, { label: "Địa điểm tiệc", value: "Bamos Trần Não" }],
+    images: [
+      { id: "img-2026-1", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Sẵn sàng cho cột mốc kỷ niệm 10 năm tại Bamos" }
+    ],
+    highlights: ["Chiến dịch ảnh 'Green Lens - Thấu kính Xanh'", "Gala Kỷ niệm 10 năm thành lập đại gia đình Illustris"]
+  }
+];
+
+
+export default function App() {
+  const [timelineData] = useState<YearEvent[]>(INITIAL_TIMELINE_DATA);
+  const [selectedYear, setSelectedYear] = useState<number>(2026);
+ 
+  const [recapImages, setRecapImages] = useState<RecapImage[]>([]);
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [timelineComments, setTimelineComments] = useState<TimelineComment[]>([]);
+
+
+  // States for Wish Form
+  const [newWishName, setNewWishName] = useState("");
+  const [newWishRole, setNewWishRole] = useState("");
+  const [newWishContent, setNewWishContent] = useState("");
+ 
+  // States for Timeline Comment Form
+  const [commentName, setCommentName] = useState("");
+  const [commentContent, setCommentContent] = useState("");
+  const [commentImage, setCommentImage] = useState<string | null>(null);
+
+
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' });
+
+
+  // ĐỒNG BỘ DỮ LIỆU TỪ SERVER API ĐỂ TẤT CẢ MỌI NGƯỜI CÙNG THẤY
+  const fetchSharedData = async () => {
+    try {
+      const res = await fetch('/api/photos');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.images) setRecapImages(data.images);
+        if (data.wishes) setWishes(data.wishes);
+        if (data.comments) setTimelineComments(data.comments);
+      }
+    } catch (err) {
+      console.error("Lỗi đồng bộ dữ liệu server:", err);
+    }
+  };
+
+
+  useEffect(() => {
+    fetchSharedData();
+    // Tự động làm mới dữ liệu sau mỗi 5 giây để cập nhật người khác vừa đăng
+    const syncInterval = setInterval(fetchSharedData, 5000);
+
+
+    // Countdown Timer
+    const targetDate = new Date('2026-07-26T16:30:00').getTime();
+    const updateTimer = () => {
+      const now = new Date().getTime();
+      const difference = targetDate - now;
+      if (difference <= 0) {
+        setCountdown({ days: '00', hours: '00', minutes: '00', seconds: '00' });
+        return;
+      }
+      const d = Math.floor(difference / (1000 * 60 * 60 * 24));
+      const h = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((difference % (1000 * 60)) / 1000);
+
+
+      setCountdown({
+        days: d < 10 ? `0${d}` : `${d}`,
+        hours: h < 10 ? `0${h}` : `${h}`,
+        minutes: m < 10 ? `0${m}` : `${m}`,
+        seconds: s < 10 ? `0${s}` : `${s}`
+      });
+    };
+
+
+    updateTimer();
+    const timerInterval = setInterval(updateTimer, 1000);
+
+
+    return () => {
+      clearInterval(syncInterval);
+      clearInterval(timerInterval);
+    };
+  }, []);
+
+
+  const currentEvent = timelineData.find(e => e.year === selectedYear) || timelineData[timelineData.length - 1];
+  const commentsForYear = timelineComments.filter(c => c.year === selectedYear);
+
+
+  // XỬ LÝ HÌNH ẢNH KHI UPLOAD (Nén ảnh để nhẹ hơn trước khi đẩy lên server)
+  const processImage = (file: File, callback: (base64: string) => void) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        const img = new Image();
+        img.src = reader.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1000;
+          let width = img.width;
+          let height = img.height;
+
+
+          if (width > MAX_WIDTH) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          }
+
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+         
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            callback(compressedBase64);
+          }
+        };
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+
+  // TẢI ẢNH LÊN SERVER CHUNG (Thư viện recap)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImage(file, async (compressedBase64) => {
+        const newImg: RecapImage = {
+          id: `recap-${Date.now()}`,
+          url: compressedBase64,
+          caption: file.name.split('.')[0] || "Ảnh kỉ niệm từ thành viên",
+          likes: 0,
+          time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+        };
+       
+        try {
+          const response = await fetch('/api/photos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'IMAGE', data: newImg }),
+          });
+          if (response.ok) fetchSharedData();
+        } catch (err) {
+          console.error("Lỗi đẩy ảnh lên server:", err);
+        }
+      });
+    }
+  };
+
+
+  // LIKE ẢNH TRÊN SERVER
+  const handleLikeRecap = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'LIKE_IMAGE', id }),
+      });
+      fetchSharedData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+
+  // XÓA ẢNH TRÊN SERVER
+  const deleteRecapImage = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'DELETE_IMAGE', id }),
+      });
+      fetchSharedData();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+
+  // THÊM LỜI CHÚC LÊN SERVER
+  const handleAddWish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWishName.trim() || !newWishContent.trim()) return;
+
+
+    const newWish: Wish = {
+      id: `w-${Date.now()}`,
+      name: newWishName.trim(),
+      role: newWishRole.trim() || "Thành viên gia đình",
+      content: newWishContent.trim(),
+      date: new Date().toLocaleDateString('vi-VN')
+    };
+
+
+    try {
+      const response = await fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'WISH', data: newWish }),
+      });
+      if (response.ok) {
+        setNewWishName("");
+        setNewWishRole("");
+        setNewWishContent("");
+        fetchSharedData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+
+  // UPLOAD ẢNH CHO BÌNH LUẬN TIMELINE
+  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processImage(file, (base64) => setCommentImage(base64));
+    }
+  };
+
+
+  // THÊM BÌNH LUẬN TIMELINE LÊN SERVER
+  const handleAddTimelineComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentName.trim() || !commentContent.trim()) return;
+
+
+    const newComment: TimelineComment = {
+      id: `cmt-${Date.now()}`,
+      year: selectedYear,
+      name: commentName.trim(),
+      content: commentContent.trim(),
+      imageUrl: commentImage || undefined,
+      date: new Date().toLocaleDateString('vi-VN')
+    };
+
+
+    try {
+      const response = await fetch('/api/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'TIMELINE_COMMENT', data: newComment }),
+      });
+      if (response.ok) {
+        setCommentName("");
+        setCommentContent("");
+        setCommentImage(null);
+        fetchSharedData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+
+  return (
+    <div className="min-h-screen bg-[#020205] text-[#f1f3f9] selection:bg-blue-500/30 font-sans antialiased overflow-x-hidden relative">
+     
+      {/* SỬA LỖI PHÔNG CHỮ TIẾNG VIỆT BẰNG GOOGLE FONTS */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+       
+        html, body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        }
+        .font-serif-clean {
+          font-family: 'Playfair Display', Georgia, serif !important;
+        }
+      `}} />
+
+
+      {/* HEADER */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-[#020205]/60 backdrop-blur-xl border-b border-white/[0.04]">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-9 h-9 rounded-lg border border-white/10 flex items-center justify-center bg-white/[0.02]">
+              <Camera className="w-4 h-4 text-slate-300" />
+            </div>
+            <div>
+              <span className="font-serif-clean text-lg tracking-[0.2em] font-light text-white block">ILLUSTRIS</span>
+              <span className="text-[7.5px] text-slate-500 tracking-[0.35em] uppercase font-medium block -mt-0.5">Photography Club</span>
+            </div>
+          </div>
+          <nav className="hidden md:flex items-center gap-10 text-[11px] tracking-[0.2em] uppercase font-medium text-slate-400">
+            <a href="#hero" className="hover:text-white transition-colors">Trang chủ</a>
+            <a href="#timeline-section" className="hover:text-white transition-colors">Timeline</a>
+            <a href="#recap-section" className="hover:text-white transition-colors">Thư viện</a>
+            <a href="#wishbook" className="hover:text-white transition-colors">Lời chúc</a>
+          </nav>
+          <a href="#wishbook" className="px-5 py-2.5 rounded-full border border-white/15 text-white hover:bg-white hover:text-black font-medium transition-all text-xs tracking-wider uppercase">
+            Gửi Lời Chúc
+          </a>
+        </div>
+      </header>
+
+
+      {/* 1. HERO SECTION */}
+      <section id="hero" className="min-h-screen pt-24 flex flex-col justify-center relative z-10 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center pb-12">
+         
+          <div className="lg:col-span-5 space-y-10 z-10">
+            <div className="space-y-5">
+              <span className="text-[11px] font-medium tracking-[0.3em] text-blue-400/80 uppercase block">KỶ NIỆM 10 NĂM THÀNH LẬP</span>
+              <h1 className="font-serif-clean text-6xl md:text-7xl font-bold tracking-wide leading-none text-white">
+                ILLUSTRIS
+              </h1>
+              <h2 className="text-xs md:text-[13px] font-medium tracking-[0.25em] text-slate-400 uppercase leading-relaxed">10 NĂM – MỘT HÀNH TRÌNH – TRIỆU KHOẢNH KHẮC</h2>
+            </div>
+
+
+            <p className="text-slate-400 text-sm leading-relaxed max-w-sm font-light">
+              NHIẾP ẢNH CHỨ?
+            </p>
+
+
+            <div className="flex flex-wrap gap-4">
+              <a href="#timeline-section" className="px-7 py-3.5 rounded-full bg-blue-600 text-white font-medium hover:bg-blue-500 transition-all flex items-center gap-2 text-xs uppercase tracking-wider">
+                <span>Khám phá Timeline</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 pt-10 border-t border-white/[0.05] mt-10 text-[13px]">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-500 font-medium tracking-wider text-[10px] uppercase"><Clock className="w-3.5 h-3.5 text-blue-400/60" /> THỜI GIAN</div>
+                <p className="text-white font-light text-sm">26.07.2026</p>
+                <p className="text-xs text-slate-500">16:30 - 19:45</p>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-500 font-medium tracking-wider text-[10px] uppercase"><MapPin className="w-3.5 h-3.5 text-blue-400/60" /> ĐỊA ĐIỂM</div>
+                <p className="text-white font-light text-sm">Bamos Trần Não</p>
+                <p className="text-xs text-slate-500 font-light">Quận 2 (cũ), TP.HCM</p>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-slate-500 font-medium tracking-wider text-[10px] uppercase"><Users className="w-3.5 h-3.5 text-blue-400/60" /> DRESSCODE</div>
+                <div className="flex gap-1 items-center mt-1">
+                  <div className="w-3 h-3 bg-black rounded border border-white/20" />
+                  <div className="w-3 h-3 bg-[#0a1128] rounded" />
+                  <div className="w-3 h-3 bg-[#4a90e2] rounded" />
+                  <div className="w-3 h-3 bg-white rounded border border-slate-700" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          {/* CHỮ SỐ 10: Giữ nguyên Gradient đẹp, Xóa các icon lấp lánh */}
+          <div className="lg:col-span-7 w-full flex flex-col items-center justify-center lg:items-end mt-12 lg:mt-0 select-none lg:pr-12">
+           
+            <div className="relative mb-2 lg:translate-x-16 scale-110 md:scale-125 flex justify-center items-center">
+              <span className="relative z-10 font-serif-clean text-[220px] md:text-[300px] font-black tracking-tighter leading-none text-transparent bg-clip-text bg-gradient-to-br from-cyan-300 via-blue-500 to-purple-600 drop-shadow-[0_20px_60px_rgba(37,99,235,0.4)]">
+                10
+              </span>
+            </div>
+
+
+            {/* Khung Countdown Đếm ngược */}
+            <div className="bg-white/[0.02] border border-white/[0.06] p-5 rounded-2xl shadow-2xl backdrop-blur-md max-w-xs w-full lg:translate-x-16 mt-6 relative z-20">
+              <p className="text-[9px] font-mono tracking-[0.25em] text-slate-500 uppercase text-center mb-3.5">COUNTDOWN TO ILLUSTRIS 10TH</p>
+              <div className="grid grid-cols-4 gap-2.5 text-center">
+                <div className="bg-white/[0.02] p-2.5 rounded-xl border border-white/[0.03]">
+                  <span className="block text-xl font-mono font-bold text-white tracking-tight">{countdown.days}</span>
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider font-light">Ngày</span>
+                </div>
+                <div className="bg-white/[0.02] p-2.5 rounded-xl border border-white/[0.03]">
+                  <span className="block text-xl font-mono font-bold text-white tracking-tight">{countdown.hours}</span>
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider font-light">Giờ</span>
+                </div>
+                <div className="bg-white/[0.02] p-2.5 rounded-xl border border-white/[0.03]">
+                  <span className="block text-xl font-mono font-bold text-white tracking-tight">{countdown.minutes}</span>
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider font-light">Phút</span>
+                </div>
+                <div className="bg-white/[0.02] p-2.5 rounded-xl border border-white/[0.03]">
+                  <span className="block text-xl font-mono font-bold text-blue-400 tracking-tight">{countdown.seconds}</span>
+                  <span className="text-[8px] text-slate-500 uppercase tracking-wider font-light">Giây</span>
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+         
+        </div>
+      </section>
+
+
+      {/* 2. TIMELINE SECTION */}
+      <section id="timeline-section" className="py-32 relative z-10 bg-gradient-to-b from-transparent to-[#05050d] border-t border-white/[0.02]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+         
+          <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 mb-16">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-blue-400 font-mono text-xs tracking-widest uppercase">
+                <Calendar className="w-3.5 h-3.5" /> CHẶNG ĐƯỜNG PHÁT TRIỂN
+              </div>
+              <h2 className="text-4xl font-serif-clean font-light text-white">Hành Trình 1 Thập Kỷ</h2>
+            </div>
+           
+            <div className="flex flex-wrap gap-2 bg-white/[0.02] p-1.5 rounded-2xl border border-white/[0.05] max-w-full">
+              {timelineData.map((ev) => (
+                <button
+                  key={ev.year}
+                  onClick={() => setSelectedYear(ev.year)}
+                  className={`px-4 py-2 rounded-xl font-mono text-xs tracking-wider transition-all ${
+                    selectedYear === ev.year
+                      ? 'bg-blue-600 text-white font-semibold shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {ev.year}
+                </button>
+              ))}
+            </div>
+          </div>
+
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 bg-white/[0.01] p-8 md:p-12 rounded-3xl border border-white/[0.03]">
+            {/* Cột thông tin năm */}
+            <div className="lg:col-span-5 space-y-8">
+              <div className="space-y-2">
+                <span className="font-mono text-5xl font-extralight text-blue-500/50">
+                  {currentEvent.year}
+                </span>
+                <h3 className="text-2xl font-serif-clean font-normal text-white">{currentEvent.title}</h3>
+                <p className="text-sm font-medium text-slate-400 tracking-wide italic">"{currentEvent.tagline}"</p>
+              </div>
+
+
+              <p className="text-slate-400 text-sm leading-relaxed font-light">{currentEvent.description}</p>
+
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.04]">
+                {currentEvent.stats.map((st, idx) => (
+                  <div key={idx} className="space-y-1">
+                    <span className="text-[10px] uppercase font-mono tracking-widest text-slate-500">{st.label}</span>
+                    <p className="text-sm text-white font-medium">{st.value}</p>
+                  </div>
+                ))}
+              </div>
+
+
+              <div className="space-y-2">
+                <span className="text-[10px] uppercase font-mono tracking-widest text-slate-500 block">Dấu ấn nổi bật:</span>
+                <ul className="space-y-1.5 text-xs text-slate-400 font-light">
+                  {currentEvent.highlights.map((hl, idx) => (
+                    <li key={idx} className="flex items-center gap-2">
+                      <span className="w-1 h-1 bg-blue-400 rounded-full"></span>
+                      {hl}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+
+            {/* Cột hình ảnh và bình luận */}
+            <div className="lg:col-span-7 flex flex-col gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {currentEvent.images.map((img) => (
+                  <div
+                    key={img.id}
+                    onClick={() => setLightboxUrl(img.url)}
+                    className="group relative h-72 rounded-2xl overflow-hidden border border-white/[0.05] bg-slate-900 cursor-zoom-in"
+                  >
+                    <img
+                      src={img.url}
+                      alt={img.caption}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-5">
+                      <p className="text-xs font-light text-slate-200 leading-snug">{img.caption}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+
+              {/* KHU VỰC BÌNH LUẬN & CHIA SẺ ẢNH CHO NĂM */}
+              <div className="mt-4 border-t border-white/[0.05] pt-8">
+                <h4 className="text-sm font-medium text-white mb-6 flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-blue-400" />
+                  Ký ức năm {currentEvent.year} của bạn
+                </h4>
+               
+                {/* Danh sách bình luận */}
+                <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                  {commentsForYear.length === 0 ? (
+                    <p className="text-xs text-slate-500 font-light italic">Chưa có chia sẻ nào. Hãy là người đầu tiên lưu giữ kỷ niệm!</p>
+                  ) : (
+                    commentsForYear.map((cmt) => (
+                      <div key={cmt.id} className="bg-white/[0.02] border border-white/[0.03] p-4 rounded-xl space-y-3">
+                        <div className="flex justify-between items-start">
+                          <span className="text-sm font-medium text-blue-300">{cmt.name}</span>
+                          <span className="text-[10px] text-slate-500">{cmt.date}</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed">{cmt.content}</p>
+                        {cmt.imageUrl && (
+                          <img src={cmt.imageUrl} alt="Shared memory" className="h-32 w-auto rounded-lg object-cover border border-white/[0.05] mt-2 cursor-zoom-in" onClick={() => setLightboxUrl(cmt.imageUrl!)} />
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+
+                {/* Form thêm bình luận */}
+                <form onSubmit={handleAddTimelineComment} className="flex flex-col gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                      type="text" required placeholder="Tên của bạn..." value={commentName} onChange={(e) => setCommentName(e.target.value)}
+                      className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white"
+                    />
+                    <div className="flex gap-2">
+                      <label className="flex-shrink-0 px-3 py-2 rounded-lg border border-white/10 text-xs text-slate-400 bg-black/40 hover:bg-white/10 transition-colors cursor-pointer flex items-center gap-2">
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        {commentImage ? "Đã chọn ảnh" : "Thêm ảnh"}
+                        <input type="file" accept="image/*" className="hidden" onChange={handleCommentImageUpload} />
+                      </label>
+                      {commentImage && (
+                        <button type="button" onClick={() => setCommentImage(null)} className="p-2 text-red-400 bg-red-400/10 rounded-lg hover:bg-red-400/20">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <input
+                      type="text" required placeholder="Viết chia sẻ của bạn về năm này..." value={commentContent} onChange={(e) => setCommentContent(e.target.value)}
+                      className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-white"
+                    />
+                    <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors">
+                      Gửi
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+
+            </div>
+          </div>
+
+
+        </div>
+      </section>
+
+
+      {/* 3. THƯ VIỆN ẢNH ĐÊM TIỆC */}
+      <section id="recap-section" className="py-32 bg-[#020205] relative z-10">
+        <div className="max-w-7xl mx-auto px-6 md:px-12">
+         
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-16">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-blue-400 font-mono text-xs tracking-widest uppercase">
+                <Layers className="w-3.5 h-3.5" /> THƯ VIỆN ẢNH SỰ KIỆN CO-WORKING
+              </div>
+              <h2 className="text-4xl font-serif-clean font-light text-white tracking-wide">Khoảnh Khắc Đêm Tiệc</h2>
+            </div>
+           
+            <label className="px-6 py-3 rounded-full border border-white/10 text-xs font-medium uppercase tracking-wider text-slate-300 bg-white/[0.02] hover:bg-white hover:text-black transition-all flex items-center gap-2 cursor-pointer">
+              <Upload className="w-3.5 h-3.5" />
+              <span>Đăng ảnh của bạn lên màn hình chung</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+            </label>
+          </div>
+
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            {recapImages.length === 0 ? (
+              <div className="col-span-full text-center py-12 border border-dashed border-white/10 rounded-2xl text-slate-500 text-xs tracking-wider">
+                CHƯA CÓ ẢNH NÀO ĐƯỢC TẢI LÊN. HÃY LÀ NGƯỜI ĐẦU TIÊN CHIA SẺ KỶ NIỆM!
+              </div>
+            ) : (
+              recapImages.map((img) => (
+                <div
+                  key={img.id}
+                  className="group bg-white/[0.01] border border-white/[0.04] rounded-2xl overflow-hidden shadow-2xl transition-all hover:-translate-y-1 relative"
+                >
+                  <button
+                    onClick={(e) => deleteRecapImage(img.id, e)}
+                    className="absolute top-4 right-4 z-20 p-2 rounded-full bg-black/60 text-slate-400 hover:text-red-400 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+
+
+                  <div className="h-64 overflow-hidden relative cursor-zoom-in" onClick={() => setLightboxUrl(img.url)}>
+                    <img src={img.url} alt={img.caption} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <span className="absolute bottom-3 left-3 bg-black/50 text-[10px] font-mono px-2 py-0.5 rounded text-slate-300 backdrop-blur-sm">{img.time}</span>
+                  </div>
+                 
+                  <div className="p-5 space-y-4">
+                    <p className="text-xs text-slate-400 font-light min-h-[32px] line-clamp-2 leading-relaxed">{img.caption}</p>
+                    <div className="flex justify-between items-center pt-2 border-t border-white/[0.03]">
+                      <button
+                        onClick={(e) => handleLikeRecap(img.id, e)}
+                        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-red-400 transition-colors group/btn"
+                      >
+                        <Heart className="w-3.5 h-3.5 group-hover/btn:fill-red-500" />
+                        <span>{img.likes} Yêu thích</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+
+        </div>
+      </section>
+
+
+      {/* 4. GUESTBOOK */}
+      <section id="wishbook" className="py-32 bg-gradient-to-b from-[#020205] to-[#040409] relative z-10 border-t border-white/[0.02]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-16">
+         
+          <div className="lg:col-span-5 space-y-8">
+            <div className="space-y-3">
+              <span className="text-xs font-mono tracking-widest text-blue-400 uppercase block">GUESTBOOK</span>
+              <h2 className="text-3xl font-serif-clean font-light text-white">Gửi Lời Chúc Mừng</h2>
+              <p className="text-xs text-slate-400 font-light leading-relaxed">Hãy lưu lại lời chúc hoặc kỷ niệm đáng nhớ của bạn cùng câu lạc bộ nhân cột mốc đặc biệt này.</p>
+            </div>
+
+
+            <form onSubmit={handleAddWish} className="space-y-5 bg-white/[0.01] p-6 rounded-2xl border border-white/[0.03]">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">Họ và tên</label>
+                <input
+                  type="text" required placeholder="Họ và tên của bạn..." value={newWishName} onChange={(e) => setNewWishName(e.target.value)}
+                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50 text-white transition-colors"
+                />
+              </div>
+
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">Vai trò / Chức vụ</label>
+                <input
+                  type="text" placeholder="Cựu thành viên Gen 5, Khách mời..." value={newWishRole} onChange={(e) => setNewWishRole(e.target.value)}
+                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50 text-white transition-colors"
+                />
+              </div>
+
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-500 block">Lời chúc</label>
+                <textarea
+                  rows={4} required placeholder="Lời chúc mừng sinh nhật gửi tới Illustris..." value={newWishContent} onChange={(e) => setNewWishContent(e.target.value)}
+                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-500/50 text-white transition-colors resize-none"
+                />
+              </div>
+
+
+              <button type="submit" className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-medium uppercase tracking-wider transition-colors">
+                Gửi Lời Chúc
+              </button>
+            </form>
+          </div>
+
+
+          <div className="lg:col-span-7">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 h-[600px] overflow-y-auto pr-4 custom-scrollbar">
+              {wishes.length === 0 ? (
+                <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-500 text-xs tracking-wider border border-dashed border-white/10 rounded-2xl">
+                  CHƯA CÓ LỜI CHÚC NÀO.
+                </div>
+              ) : (
+                wishes.map(wish => (
+                  <div key={wish.id} className="bg-white/[0.02] border border-white/[0.04] p-6 rounded-2xl space-y-4 hover:bg-white/[0.04] transition-colors h-fit">
+                    <p className="text-sm font-light text-slate-300 leading-relaxed italic">"{wish.content}"</p>
+                    <div className="pt-4 border-t border-white/[0.05]">
+                      <p className="text-sm font-medium text-blue-300">{wish.name}</p>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">{wish.role}</p>
+                      <p className="text-[10px] text-slate-600 mt-2">{wish.date}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+
+        </div>
+      </section>
+
+
+      {/* LIGHTBOX (Xem ảnh to) */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-6 backdrop-blur-sm" onClick={() => setLightboxUrl(null)}>
+          <button className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors" onClick={() => setLightboxUrl(null)}>
+            <X className="w-8 h-8" />
+          </button>
+          <img src={lightboxUrl} alt="Phóng to" className="max-w-full max-h-full object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+
+      {/* CSS Tuỳ chỉnh cho Scrollbar */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+      `}} />
+
+
+    </div>
+  );
+}
+

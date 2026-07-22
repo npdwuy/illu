@@ -48,14 +48,14 @@ export default function GradientClock({
   className = '',
   size = 350,
   
-  hourHandSrc = '/hour.png',
+  hourHandSrc = '/hour.webp',
   hourLength,
   hourHeight,
   hourPivotX = 7.7,
   hourPivotY = 50,
   hourOffsetDeg = 0,
 
-  minHandSrc = '/min.png',
+  minHandSrc = '/min.webp',
   minLength,
   minHeight,
   minPivotX = 4.8,

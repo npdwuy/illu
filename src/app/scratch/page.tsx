@@ -241,7 +241,7 @@ export default function ScratchPage() {
         .clock-hand.hour {
           width: 9%;
           height: 24%;
-          background-image: url('/kim.png');
+          background-image: url('/kim.webp');
           background-size: contain;
           background-position: center bottom;
           background-repeat: no-repeat;
@@ -252,7 +252,7 @@ export default function ScratchPage() {
         .clock-hand.minute {
           width: 7.5%;
           height: 35%;
-          background-image: url('/kim.png');
+          background-image: url('/kim.webp');
           background-size: contain;
           background-position: center bottom;
           background-repeat: no-repeat;

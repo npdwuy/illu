@@ -192,7 +192,7 @@ const NUMBERS_START_DELAY_SEC = 2.25;
 
 // 4. TỶ LỆ TRỄ CỦA HÀNG CHỤC (0.0 -> 1.0):
 // 0.5 = Số 9 hàng đơn vị trượt xuống được 1/2 đoạn đường thì Hàng chục (0->1) mới bắt đầu bứt tốc trượt nhanh
-const TENS_SLIDE_START_RATIO = 0.1;
+const TENS_SLIDE_START_RATIO = 0.4;
 
 // 5. KHOẢNG CÁCH MỜ DẦN CHỮ SỐ KHI RỜI TÂM CHÍNH (px):
 // Chữ số nằm cách tâm chính 370px càng xa sẽ mờ dần về 0% opacity
@@ -204,7 +204,7 @@ const REEL_FADE_DISTANCE = 300;
 // - [0.25, 0.1, 0.25, 1.0]     -> Ease mượt nhẹ
 // - [0.0, 0.0, 0.2, 1.0]       -> Ease-Out (chạy nhanh từ đầu, phanh chậm mượt ở cuối)
 // - [0.68, -0.55, 0.265, 1.55] -> Back/Bounce (có độ nảy nhẹ khi về số 1)
-const NUMBERS_BEZIER_CURVE: [number, number, number, number] = [0.42, 0.0, 0.58, 1.0];
+const NUMBERS_BEZIER_CURVE: [number, number, number, number] = [0.5, 0.0, 0.38, 1.0];
 
 // 5. HỆ SỐ ĐƯỜNG CONG CUBIC-BEZIER CHO NGÔI SAO [p1x, p1y, p2x, p2y]:
 const STAR_BEZIER_CURVE: [number, number, number, number] = [0.25, 0.1, 0.25, 1.0];

@@ -937,13 +937,13 @@ export default function App() {
                       </div>
 
                       {/* Event Info */}
-                      <div className="flex flex-row items-start gap-10 md:gap-14 pt-6 mt-6 select-none">
+                      <div className="flex flex-row items-start gap-12 md:gap-16 pt-6 mt-6 select-none">
                         {/* Time */}
                         <div
                           ref={timeBlockRef}
-                          className="flex gap-4 items-start transition-all duration-700 delay-100 ease-out opacity-0 translate-y-7"
+                          className="flex gap-4.5 items-start transition-all duration-700 delay-100 ease-out opacity-0 translate-y-7"
                         >
-                          <svg viewBox="0 0 32 32" className="w-8 h-8 md:w-9 md:h-9 text-[#5d66d0] shrink-0 mt-0.5" fill="none" stroke="currentColor">
+                          <svg viewBox="0 0 32 32" className="w-[38px] h-[38px] md:w-[44px] md:h-[44px] text-[#5d66d0] shrink-0 mt-0.5" fill="none" stroke="currentColor">
                             <rect x="3" y="6" width="26" height="22" rx="4" strokeWidth="1.8" />
                             <path d="M8 3v4M16 3v4M24 3v4" strokeWidth="1.8" strokeLinecap="round" />
                             <path d="M3 12h26" strokeWidth="1.5" />
@@ -955,23 +955,23 @@ export default function App() {
                             <circle cx="21" cy="23" r="1" fill="currentColor" />
                             <circle cx="26" cy="23" r="1" fill="currentColor" opacity="0.6" />
                           </svg>
-                          <div className="space-y-1 min-w-0 font-condensed">
-                            <span className="text-xs text-white tracking-[0.25em] font-medium uppercase block">THỜI GIAN</span>
-                            <p className="text-base md:text-lg font-medium text-[#5d66d0] leading-tight font-sans">26.07.2026</p>
-                            <p className="text-xs md:text-sm text-[#5d66d0] font-normal font-sans">16:30 - 19:45</p>
+                          <div className="space-y-1.5 min-w-0 font-condensed">
+                            <span className="text-[14.5px] text-white tracking-[0.25em] font-medium uppercase block">THỜI GIAN</span>
+                            <p className="text-lg md:text-xl font-medium text-[#5d66d0] leading-tight font-sans">26.07.2026</p>
+                            <p className="text-sm md:text-base text-[#5d66d0] font-normal font-sans">16:30 - 19:45</p>
                           </div>
                         </div>
 
-                        {/* Location (Clickable Google Maps link with max-w-[220px]) */}
+                        {/* Location (Clickable Google Maps link with max-w-[265px]) */}
                         <a
                           ref={locationBlockRef}
                           href="https://www.google.com/maps/search/?api=1&query=Bamos+Tr%E1%BA%A7n+N%C3%A3o+9%2F8+%C4%90%C6%B0%E1%BB%9Dng+s%E1%BB%91+10+B%C3%ACnh+Kh%C3%A1nh+An+Kh%C3%A1nh+H%E1%BB%93+Ch%C3%AD+Minh"
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Mở vị trí Bamos Trần Não trên Google Maps"
-                          className="group flex gap-4 items-start max-w-[220px] transition-all duration-700 delay-200 ease-out cursor-pointer pointer-events-auto opacity-0 translate-y-7"
+                          className="group flex gap-4.5 items-start max-w-[265px] transition-all duration-700 delay-200 ease-out cursor-pointer pointer-events-auto opacity-0 translate-y-7"
                         >
-                          <svg viewBox="0 0 36 36" className="w-9 h-9 md:w-10 md:h-10 text-[#5d66d0] group-hover:text-blue-400 shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor">
+                          <svg viewBox="0 0 36 36" className="w-[44px] h-[44px] md:w-[48px] md:h-[48px] text-[#5d66d0] group-hover:text-blue-400 shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor">
                             <path
                               d="M18 3C12.5 3 8 7.5 8 13C8 20 18 27.5 18 27.5C18 27.5 28 20 28 13C28 7.5 23.5 3 18 3Z"
                               strokeWidth="1.8"
@@ -980,12 +980,12 @@ export default function App() {
                             <circle cx="18" cy="12" r="3.5" strokeWidth="1.8" />
                             <ellipse cx="18" cy="29" rx="12" ry="4" strokeWidth="1.8" />
                           </svg>
-                          <div className="space-y-1 min-w-0 font-condensed">
-                            <span className="text-xs text-white tracking-[0.25em] font-medium uppercase block">ĐỊA ĐIỂM</span>
-                            <p className="text-base md:text-lg font-medium text-[#5d66d0] group-hover:text-blue-400 group-hover:underline leading-tight font-sans transition-colors flex items-center gap-1">
+                          <div className="space-y-1.5 min-w-0 font-condensed">
+                            <span className="text-[14.5px] text-white tracking-[0.25em] font-medium uppercase block">ĐỊA ĐIỂM</span>
+                            <p className="text-lg md:text-xl font-medium text-[#5d66d0] group-hover:text-blue-400 group-hover:underline leading-tight font-sans transition-colors flex items-center gap-1">
                               <span>Bamos Trần Não</span>
                             </p>
-                            <p className="text-xs md:text-sm text-white/90 font-light leading-relaxed font-sans">
+                            <p className="text-sm md:text-base text-white/90 font-light leading-relaxed font-sans">
                               9/8 Đường số 10, Bình Khánh, An Khánh, Hồ Chí Minh
                             </p>
                           </div>

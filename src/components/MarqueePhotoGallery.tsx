@@ -531,6 +531,11 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
       <div
         ref={containerRef}
         className="relative flex-1 flex flex-col lg:flex-row w-full items-stretch overflow-hidden mb-3"
+        style={{
+          height: "calc(66vh + 61px)",
+          minHeight: "541px",
+          maxHeight: "calc(66vh + 61px)",
+        }}
       >
 
         {/* ================= LEFT DETAIL PANEL (Dynamic Smooth Scaling 0.25 to 0.45 Width) ================= */}
@@ -548,7 +553,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                 width: { duration: isResizingRef.current ? 0 : 0.45, ease: [0.16, 1, 0.3, 1] },
                 opacity: { duration: 0.25 }
               }}
-              className="shrink-0 border-r border-slate-800 bg-slate-950 flex flex-col justify-between relative overflow-hidden z-30 shadow-2xl min-w-0 self-stretch"
+              className="shrink-0 border-r border-slate-800 bg-slate-950 flex flex-col justify-between relative overflow-hidden z-30 shadow-2xl min-w-0 h-full max-h-full"
             >
               {/* Refined Minimalist Splitter Grip Bar (25% <-> 45% Page Width) */}
               <div
@@ -564,9 +569,9 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
               </div>
 
               {/* Panel Inside Content Container (padded away from splitter bar on right) */}
-              <div className="p-3.5 pr-5 pb-3 h-full flex-1 flex flex-col justify-start overflow-y-auto custom-scrollbar">
+              <div className="p-3.5 pr-5 pb-3 h-full min-h-0 flex-1 flex flex-col justify-start overflow-y-auto custom-scrollbar">
                 {/* Top Bar: Minimalist Close Button */}
-                <div className="flex items-center justify-end pb-1 border-b border-slate-800/80 shrink-0 mb-3">
+                <div className="flex items-center justify-end pb-1 border-b border-slate-800/80 shrink-0 mb-2">
                   <button
                     onClick={() => setSelectedImageState(null)}
                     className="text-slate-400 hover:text-white transition-colors cursor-pointer p-0.5"
@@ -582,7 +587,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="flex-1 flex flex-col justify-start items-start gap-3.5"
+                  className="flex-1 min-h-0 flex flex-col justify-start items-start gap-2.5"
                 >
                   {/* High Resolution Image Preview (Aligned top, fit image size with aspect-ratio) */}
                   <div
@@ -603,14 +608,14 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                     />
                   </div>
 
-                  {/* Metadata Section stacked directly below image (Top to Bottom) */}
-                  <div className="w-full space-y-2.5">
+                  {/* Metadata Section stacked directly below image (Top to Bottom, takes minimum required height) */}
+                  <div className="w-full space-y-1.5 shrink-0">
                     <h3 className="text-lg md:text-xl font-serif text-white font-bold leading-snug">
                       {selectedImage.title}
                     </h3>
 
                     {/* Date, Location & Category */}
-                    <div className="flex flex-wrap items-center gap-2.5 text-[12.5px] font-mono text-slate-400 pb-2 border-b border-slate-800/60">
+                    <div className="flex flex-wrap items-center gap-2 text-[12.5px] font-mono text-slate-400 pb-1.5 border-b border-slate-800/60">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-blue-400" />
                         <span>{selectedImage.date}</span>
@@ -625,12 +630,12 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                     </div>
 
                     {/* Raw Minimalist Description (Hiển thị đầy đủ 100% mô tả) */}
-                    <p className="text-[13.5px] text-slate-300 leading-relaxed font-sans">
+                    <p className="text-[16px] text-slate-300 leading-relaxed font-sans">
                       {selectedImage.description}
                     </p>
 
                     {/* Raw Minimalist Tags */}
-                    <div className="flex flex-wrap gap-1.5 text-[12px] font-mono text-slate-400 pt-1">
+                    <div className="flex flex-wrap gap-1.5 text-[12px] font-mono text-slate-400 pt-0.5">
                       {selectedImage.tags.map((tag, idx) => (
                         <span key={idx} className="hover:text-blue-400 transition-colors">
                           #{tag}
@@ -646,7 +651,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
 
         {/* ================= RIGHT MAIN GALLERY SECTION (ALWAYS RUNNING MARQUEE) ================= */}
         {/* Uniform GAP Y = GAP X = gap-2 (8px) across rows and columns */}
-        <div className="flex-1 w-full min-w-0 flex flex-col gap-2 py-0 overflow-hidden self-stretch">
+        <div className="flex-1 w-full min-w-0 flex flex-col gap-2 py-0 overflow-hidden h-full max-h-full">
           {filteredMarqueeRows.map((rowItems, rowIndex) => (
             <MarqueeRow
               key={rowIndex}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TIMELINE_ITEMS, TimelineItem } from "@/data/timelineData";
 import { X, Tag, ChevronLeft, ChevronRight, Play, Pause } from "lucide-react";
+import Image from "next/image";
 
 export default function SquareTimeline() {
   // Selected year filter (null = all years active)
@@ -45,6 +46,13 @@ export default function SquareTimeline() {
   const row2Items = TIMELINE_ITEMS.slice(4, 7);
   // Row 3: 3 items (Index 7, 8, 9) -> 2023, 2024, 2026
   const row3Items = TIMELINE_ITEMS.slice(7, 10);
+
+  // Height constants — keep in sync with image row heights below
+  // Each row: border-2 (2px top + 2px bottom) + h-[155px] = 159px
+  // 3 rows × 159px + 2 spacers × 20px = 477 + 40 = 517px
+  const PANEL_H = 517;
+  const PANEL_PADDING = 20; // p-5 = 20px each side, 40px total
+  const SLIDESHOW_H = 240; // fixed slideshow height; remaining space fills info section via flex
 
   return (
     <div className="w-full max-w-[1280px] mx-auto p-4 md:p-8 font-sans text-slate-100 select-none">
@@ -103,7 +111,8 @@ export default function SquareTimeline() {
       </div>
 
       {/* MAIN CONTAINER */}
-      <div className="relative flex flex-col lg:flex-row gap-6 min-h-[500px]">
+      {/* Total image rows height: 3×155px + 2×20px gap + borders ≈ 515px */}
+      <div className="relative flex flex-col lg:flex-row gap-6" style={{ minHeight: PANEL_H }}>
         {/* LEFT SIDE PREVIEW PANEL (CHỈ HIỂN THỊ KHI ĐÃ CHỌN Ô TIMELINE, CHẠY SLIDESHOW ALBUM MƯỢT MÀ) */}
         <AnimatePresence mode="wait">
           {selectedItem && (
@@ -113,7 +122,14 @@ export default function SquareTimeline() {
               animate={{ opacity: 1, width: "100%", x: 0 }}
               exit={{ opacity: 0, width: 0, x: -30 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:w-[440px] shrink-0 bg-slate-900 border border-amber-500/50 shadow-2xl p-5 flex flex-col justify-between relative overflow-hidden"
+              className="lg:w-[440px] shrink-0 bg-slate-900 border border-amber-500/50 shadow-2xl flex flex-col relative"
+              style={{
+                height: PANEL_H,
+                maxHeight: PANEL_H,
+                padding: PANEL_PADDING,
+                boxSizing: "border-box",
+                overflow: "hidden",
+              }}
             >
               {/* Close Button (Loại bỏ xem ảnh) */}
               <button
@@ -124,28 +140,59 @@ export default function SquareTimeline() {
                 <X className="w-5 h-5" />
               </button>
 
-              {/* ALBUM SLIDESHOW CONTAINER (Ưu tiên hiển thị đúng tỉ lệ gốc của ảnh + ambient backdrop blur) */}
-              <div className="relative w-full h-[320px] overflow-hidden border border-slate-800 group bg-slate-950 flex items-center justify-center">
-                <AnimatePresence mode="wait">
-                  <div key={currentImageIndex} className="absolute inset-0 w-full h-full">
-                    {/* Ambient Blur Backdrop */}
-                    <img
-                      src={selectedItem.images[currentImageIndex] || selectedItem.imageUrl}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-110 pointer-events-none select-none"
-                    />
-                    {/* Foreground Full Aspect Ratio Image */}
-                    <motion.img
-                      src={selectedItem.images[currentImageIndex] || selectedItem.imageUrl}
-                      alt={`${selectedItem.title} - photo ${currentImageIndex + 1}`}
-                      initial={{ opacity: 0, scale: 1.03 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.97 }}
+              {/* ALBUM SLIDESHOW CONTAINER — chiều cao cố định, phần còn lại dành cho text */}
+              <div
+                className="relative w-full overflow-hidden border border-slate-800 group bg-slate-950 flex items-center justify-center shrink-0"
+                style={{ height: SLIDESHOW_H }}
+              >
+                {/* Ambient Blur Backdrop — Static crossfade to avoid slider repaints in filter */}
+                <div
+                  className="absolute inset-0 w-full h-full pointer-events-none select-none overflow-hidden"
+                  style={{ contain: "strict" }}
+                >
+                  <AnimatePresence mode="popLayout">
+                    <motion.div
+                      key={currentImageIndex}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 0.35 }}
+                      exit={{ opacity: 0 }}
                       transition={{ duration: 0.5 }}
-                      className="relative z-10 w-full h-full object-contain drop-shadow-xl"
-                    />
-                  </div>
-                </AnimatePresence>
+                      className="absolute inset-0 w-full h-full"
+                      style={{ filter: "blur(24px)", transform: "scale(1.15)" }}
+                    >
+                      <Image
+                        src={selectedItem.images[currentImageIndex]}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Foreground Slider — Dùng translateX để tối ưu GPU thay vì opacity crossfade */}
+                <div 
+                  className="relative z-10 flex w-full h-full"
+                  style={{
+                    transform: `translateX(-${currentImageIndex * 100}%)`,
+                    transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+                    willChange: "transform",
+                  }}
+                >
+                  {selectedItem.images.map((src, idx) => (
+                    <div key={idx} className="relative w-full h-full shrink-0 flex items-center justify-center p-2">
+                      <Image
+                        src={src}
+                        alt={`${selectedItem.title} - photo ${idx + 1}`}
+                        fill
+                        sizes="(max-width: 768px) 100vw, 440px"
+                        className="object-contain drop-shadow-xl"
+                        priority={idx === 0}
+                      />
+                    </div>
+                  ))}
+                </div>
 
                 {/* Top Badge: Year & Photo Count */}
                 <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
@@ -201,9 +248,23 @@ export default function SquareTimeline() {
                 </div>
               </div>
 
-              {/* Information Metadata */}
-              <div className="mt-4 flex-1 flex flex-col justify-between">
-                <div>
+              {/* Information Metadata
+                  flex: 1 1 0 + min-height: 0 = fill exact remaining space, never overflow panel.
+                  Text scrolls inside; panel height stays locked at PANEL_H.
+              */}
+              <div
+                className="mt-4 flex flex-col"
+                style={{ flex: "1 1 0", minHeight: 0, overflow: "hidden" }}
+              >
+                {/* Scrollable text — grows freely, scrolls when content exceeds space */}
+                <div
+                  className="flex-1 overflow-y-auto pr-1"
+                  style={{
+                    minHeight: 0,
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "rgba(251,191,36,0.4) transparent",
+                  }}
+                >
                   <div className="flex items-center gap-2 mb-1.5 text-xs text-amber-400 font-mono uppercase tracking-wider">
                     <Tag className="w-3.5 h-3.5" />
                     <span>Album: {selectedItem.category}</span>
@@ -217,12 +278,16 @@ export default function SquareTimeline() {
                       {selectedItem.subtitle}
                     </p>
                   )}
-                  <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 border-l-2 border-amber-500">
+                  <p
+                    className="text-slate-300 leading-relaxed bg-slate-950/60 p-3 border-l-2 border-amber-500"
+                    style={{ fontSize: "14.3px" }}
+                  >
                     {selectedItem.description}
                   </p>
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                {/* Footer — pinned below text, never scrolls */}
+                <div className="mt-2 pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400 font-mono shrink-0">
                   <span>Album tự động chạy slideshow</span>
                   <span className="text-amber-400">Click ô khác để xem album năm tương ứng</span>
                 </div>
@@ -245,19 +310,23 @@ export default function SquareTimeline() {
                   <div
                     key={item.id}
                     onClick={() => setSelectedItem(item)}
-                    className={`relative h-[155px] cursor-pointer overflow-hidden transition-all duration-300 group ${
+                    className={`relative h-[155px] cursor-pointer overflow-hidden group ${
                       !active ? "opacity-25 grayscale saturate-0" : "opacity-100"
                     } ${isSelected ? "ring-2 ring-amber-400 z-10" : ""}`}
+                    style={{ transition: "opacity 0.3s ease, filter 0.3s ease" }}
                   >
-                    {/* ONLY IMAGE INSIDE THE BLOCK */}
-                    <img
+                    {/* ONLY IMAGE INSIDE THE BLOCK — GPU-accelerated scale via transform3d */}
+                    <Image
                       src={item.imageUrl}
                       alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      fill
+                      sizes="(max-width: 768px) 25vw, 250px"
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                      style={{ willChange: "transform" }}
                     />
 
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 flex items-end p-2" style={{ transition: "opacity 0.3s ease" }}>
                       <span className="text-xs font-mono font-bold text-amber-300 bg-black/80 px-2 py-0.5 border border-amber-500/40">
                         {item.year} • Xem Album
                       </span>
@@ -289,19 +358,22 @@ export default function SquareTimeline() {
                   <div
                     key={item.id}
                     onClick={() => setSelectedItem(item)}
-                    className={`relative h-[155px] cursor-pointer overflow-hidden transition-all duration-300 group ${
+                    className={`relative h-[155px] cursor-pointer overflow-hidden group ${
                       !active ? "opacity-25 grayscale saturate-0" : "opacity-100"
                     } ${isSelected ? "ring-2 ring-amber-400 z-10" : ""}`}
+                    style={{ transition: "opacity 0.3s ease, filter 0.3s ease" }}
                   >
-                    {/* ONLY IMAGE INSIDE THE BLOCK */}
-                    <img
+                    <Image
                       src={item.imageUrl}
                       alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      fill
+                      sizes="(max-width: 768px) 25vw, 250px"
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                      style={{ willChange: "transform" }}
                     />
 
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 flex items-end p-2" style={{ transition: "opacity 0.3s ease" }}>
                       <span className="text-xs font-mono font-bold text-amber-300 bg-black/80 px-2 py-0.5 border border-amber-500/40">
                         {item.year} • Xem Album
                       </span>
@@ -333,19 +405,22 @@ export default function SquareTimeline() {
                   <div
                     key={item.id}
                     onClick={() => setSelectedItem(item)}
-                    className={`relative h-[155px] cursor-pointer overflow-hidden transition-all duration-300 group ${
+                    className={`relative h-[155px] cursor-pointer overflow-hidden group ${
                       !active ? "opacity-25 grayscale saturate-0" : "opacity-100"
                     } ${isSelected ? "ring-2 ring-amber-400 z-10" : ""}`}
+                    style={{ transition: "opacity 0.3s ease, filter 0.3s ease" }}
                   >
-                    {/* ONLY IMAGE INSIDE THE BLOCK */}
-                    <img
+                    <Image
                       src={item.imageUrl}
                       alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      fill
+                      sizes="(max-width: 768px) 25vw, 250px"
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                      style={{ willChange: "transform" }}
                     />
 
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 flex items-end p-2" style={{ transition: "opacity 0.3s ease" }}>
                       <span className="text-xs font-mono font-bold text-amber-300 bg-black/80 px-2 py-0.5 border border-amber-500/40">
                         {item.year} • Xem Album
                       </span>

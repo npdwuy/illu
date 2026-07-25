@@ -10,7 +10,7 @@ export interface Star10PointsProps {
   style?: React.CSSProperties;
 }
 
-export default function Star10Points({
+function Star10Points({
   className = '',
   gradientId,
   fillColor = 'white',
@@ -51,3 +51,5 @@ export default function Star10Points({
     </svg>
   );
 }
+
+export default React.memo(Star10Points);

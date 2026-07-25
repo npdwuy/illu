@@ -36,7 +36,7 @@ interface GearBlockProps {
  * Supports individual gear speeds (`speed1`, `speed2`, `speed3`) or base `speed`,
  * rotation angle `rotate`, `reverse`, `opacity`, and custom colors.
  */
-export default function GearBlock({
+function GearBlock({
   opacity = 1.0,
   rotate = 0,
   speed = 10,
@@ -201,3 +201,5 @@ export default function GearBlock({
     </div>
   );
 }
+
+export default React.memo(GearBlock);

@@ -23,7 +23,7 @@ interface ClockGearsProps {
  * Clean Single-Layer ClockGears component wrapper around GearBlock.
  * Allows setting overall speed (e.g. speed={15}) or individual gear speeds (speed1, speed2, speed3).
  */
-export default function ClockGears({
+function ClockGears({
   opacity = 0.85,
   rotate = 0,
   speed = 10,
@@ -56,3 +56,5 @@ export default function ClockGears({
     />
   );
 }
+
+export default React.memo(ClockGears);

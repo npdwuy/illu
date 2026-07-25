@@ -19,6 +19,7 @@
       }
     ],
     "paths": {
+      "framer": ["./src/framer-shim.tsx"],
       "@/*": ["./src/*"]
     }
   },

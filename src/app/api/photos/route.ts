@@ -1,87 +1,89 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const DATA_FILE = path.join(process.cwd(), 'data.json');
-
-interface RecapImage {
-  id: string;
-  url: string;
-  caption: string;
-  likes: number;
-  time: string;
-}
-
-interface Wish {
-  id: string;
-  name: string;
-  role: string;
-  content: string;
-  date: string;
-}
-
-interface TimelineComment {
-  id: string;
-  year: number;
-  name: string;
-  content: string;
-  imageUrl?: string;
-  date: string;
-}
-
-interface DataSchema {
-  images: RecapImage[];
-  wishes: Wish[];
-  comments: TimelineComment[];
-}
-
-function readData(): DataSchema {
-  if (!fs.existsSync(DATA_FILE)) {
-    const initialData: DataSchema = { images: [], wishes: [], comments: [] };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2), 'utf-8');
-    return initialData;
-  }
-  try {
-    const content = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(content);
-  } catch (e) {
-    return { images: [], wishes: [], comments: [] };
-  }
-}
-
-function writeData(data: DataSchema) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-}
+import { getTursoClient, ensureTablesExist } from '@/lib/turso';
 
 export async function GET() {
-  const data = readData();
-  return NextResponse.json(data);
+  try {
+    await ensureTablesExist();
+    const db = getTursoClient();
+
+    const [imagesResult, wishesResult, commentsResult] = await Promise.all([
+      db.execute('SELECT id, url, caption, likes, time FROM images ORDER BY created_at ASC'),
+      db.execute('SELECT id, name, role, content, date FROM wishes ORDER BY created_at ASC'),
+      db.execute('SELECT id, year, name, content, image_url AS imageUrl, date FROM comments ORDER BY created_at ASC'),
+    ]);
+
+    const images = imagesResult.rows.map((row) => ({
+      id: String(row.id),
+      url: String(row.url),
+      caption: String(row.caption || ''),
+      likes: Number(row.likes || 0),
+      time: String(row.time || ''),
+    }));
+
+    const wishes = wishesResult.rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name || ''),
+      role: String(row.role || ''),
+      content: String(row.content || ''),
+      date: String(row.date || ''),
+    }));
+
+    const comments = commentsResult.rows.map((row) => ({
+      id: String(row.id),
+      year: Number(row.year || 0),
+      name: String(row.name || ''),
+      content: String(row.content || ''),
+      imageUrl: row.imageUrl ? String(row.imageUrl) : undefined,
+      date: String(row.date || ''),
+    }));
+
+    return NextResponse.json({ images, wishes, comments });
+  } catch (error) {
+    console.error('Turso DB GET Error:', error);
+    // Return empty state gracefully if DB connection is pending setup
+    return NextResponse.json({ images: [], wishes: [], comments: [] });
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const data = readData();
+    await ensureTablesExist();
+    const db = getTursoClient();
 
     if (body.type === 'IMAGE') {
-      data.images.push(body.data);
+      const { id, url, caption, likes, time } = body.data;
+      await db.execute({
+        sql: 'INSERT INTO images (id, url, caption, likes, time) VALUES (?, ?, ?, ?, ?)',
+        args: [id, url, caption || '', likes || 0, time || ''],
+      });
     } else if (body.type === 'LIKE_IMAGE') {
-      const img = data.images.find((i) => i.id === body.id);
-      if (img) {
-        img.likes = (img.likes || 0) + 1;
-      }
+      await db.execute({
+        sql: 'UPDATE images SET likes = likes + 1 WHERE id = ?',
+        args: [body.id],
+      });
     } else if (body.type === 'DELETE_IMAGE') {
-      data.images = data.images.filter((i) => i.id !== body.id);
+      await db.execute({
+        sql: 'DELETE FROM images WHERE id = ?',
+        args: [body.id],
+      });
     } else if (body.type === 'WISH') {
-      data.wishes.push(body.data);
+      const { id, name, role, content, date } = body.data;
+      await db.execute({
+        sql: 'INSERT INTO wishes (id, name, role, content, date) VALUES (?, ?, ?, ?, ?)',
+        args: [id, name, role || '', content || '', date || ''],
+      });
     } else if (body.type === 'TIMELINE_COMMENT') {
-      data.comments.push(body.data);
+      const { id, year, name, content, imageUrl, date } = body.data;
+      await db.execute({
+        sql: 'INSERT INTO comments (id, year, name, content, image_url, date) VALUES (?, ?, ?, ?, ?, ?)',
+        args: [id, year, name || '', content || '', imageUrl || null, date || ''],
+      });
     }
 
-    writeData(data);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("API Error:", error);
-    return NextResponse.json({ error: 'Failed to process request' }, { status: 500 });
+    console.error('Turso DB POST Error:', error);
+    return NextResponse.json({ error: 'Failed to process database operation' }, { status: 500 });
   }
 }

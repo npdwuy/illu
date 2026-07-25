@@ -34,3 +34,8 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## 📚 Architecture Documentation
+
+- [Scroll Buffer & Accelerated Overlap Architecture](docs/SCROLL_BUFFER_PARALLAX_GUIDE.md) - Tài liệu hướng dẫn kỹ thuật chi tiết về xử lý cuộn trang, vùng đệm (Buffer Freeze), vận tốc trượt ($v_1, v_2$) và tối ưu hiệu năng GPU 60 FPS.
+

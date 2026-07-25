@@ -5,8 +5,13 @@ import Typewriter from '@/components/Typewriter';
 import ClockGears from '@/components/ClockGears';
 import GradientClock from '@/components/GradientClock';
 import Star10Points from '@/components/Star10Points';
+import GalleryImageTile from '@/components/GalleryImageTile';
 import { motion } from 'framer-motion';
-import React, { useState, useEffect, useRef } from 'react';
+import MarqueePhotoGallery from '@/components/MarqueePhotoGallery';
+import MarqueeAdminPanel from '@/components/MarqueeAdminPanel';
+import PartyCanvas from '@/components/PartyCanvas';
+import type { MarqueeImage } from '@/data/marqueeGalleryData';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -14,6 +19,8 @@ if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
 }
 import { useAdaptiveScale } from '@/hooks/useAdaptiveScale';
+import { computeParallax } from '@/hooks/useScrollParallax';
+import { calculateScrollStage, ScrollBufferStageConfig } from '@/utils/scrollEngine';
 import {
   Camera,
   Calendar,
@@ -27,7 +34,9 @@ import {
   Trash2,
   MessageCircle,
   Image as ImageIcon,
-  X
+  X,
+  Sparkles,
+  Settings,
 } from 'lucide-react';
 
 interface YearEvent {
@@ -52,22 +61,7 @@ interface RecapImage {
   time: string;
 }
 
-interface Wish {
-  id: string;
-  name: string;
-  role: string;
-  content: string;
-  date: string;
-}
 
-interface TimelineComment {
-  id: string;
-  year: number;
-  name: string;
-  content: string;
-  imageUrl?: string;
-  date: string;
-}
 
 const INITIAL_TIMELINE_DATA: YearEvent[] = [
   {
@@ -77,7 +71,9 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     description: "Năm thành lập chính thức câu lạc bộ nhiếp ảnh Illustris với những thành viên thế hệ Gen 1 nhiệt huyết.",
     stats: [{ label: "Thành viên", value: "12 nhân sự" }, { label: "Dự án", value: "02 bộ ảnh" }],
     images: [
-      { id: "img-2016-1", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Buổi gặp mặt đầu tiên thiết lập CLB" }
+      { id: "img-2016-1", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Buổi gặp mặt đầu tiên thiết lập CLB Gen 1" },
+      { id: "img-2016-2", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Phototrip dã ngoại đường phố đầu tiên" },
+      { id: "img-2016-3", url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", caption: "Bút tích kí tên thành lập câu lạc bộ" }
     ],
     highlights: ["Chính thức ra mắt thương hiệu Illustris", "Tổ chức phototrip đầu tiên"]
   },
@@ -87,7 +83,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Đi tìm bản sắc riêng biệt",
     description: "Illustris bắt đầu thử nghiệm các concept chụp ảnh nghệ thuật đường phố và chân dung có chiều sâu.",
     stats: [{ label: "Triển lãm", value: "1 quy mô nhỏ" }, { label: "Kho tư liệu", value: "500+ shot hình" }],
-    images: [{ id: "img-2017-1", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Thử nghiệm ảnh phim trắng đen" }],
+    images: [
+      { id: "img-2017-1", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Thử nghiệm ảnh phim trắng đen đường phố" },
+      { id: "img-2017-2", url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80", caption: "Góc máy ánh sáng tự nhiên chiều hoàng hôn" },
+      { id: "img-2017-3", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Workshop chia sẻ kỹ thuật bắt khoảnh khắc" }
+    ],
     highlights: ["Tổ chức workshop ánh sáng tự nhiên"]
   },
   {
@@ -96,7 +96,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Chinh phục ánh sáng nhân tạo",
     description: "Đầu tư mạnh mẽ vào hệ thống phòng Studio chuyên nghiệp, làm chủ các kỹ thuật tạo khối thương mại.",
     stats: [{ label: "Diện tích", value: "120m2 hiện đại" }, { label: "Thiết bị", value: "Dàn đèn studio mới" }],
-    images: [{ id: "img-2018-1", url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", caption: "Setup phòng chụp Studio chuyên nghiệp tại Q2" }],
+    images: [
+      { id: "img-2018-1", url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", caption: "Setup phòng chụp Studio chuyên nghiệp tại Q2" },
+      { id: "img-2018-2", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Thử nghiệm hệ thống đèn Strobe khối" },
+      { id: "img-2018-3", url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80", caption: "Bộ ảnh Lookbook thời trang thương mại" }
+    ],
     highlights: ["Mở rộng mảng chụp thương mại cho nhãn hàng"]
   },
   {
@@ -105,7 +109,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Đồng hành cùng các sự kiện quy mô",
     description: "Illustris trở thành đối tác bảo trợ hình ảnh chính thức cho nhiều chiến dịch lớn của giới trẻ.",
     stats: [{ label: "Sự kiện", value: "15+ chương trình" }, { label: "Khách hàng", value: "Đại học lớn" }],
-    images: [{ id: "img-2019-1", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Tác nghiệp tại festival âm nhạc lớn" }],
+    images: [
+      { id: "img-2019-1", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Tác nghiệp tại festival âm nhạc quy mô 5000 khán giả" },
+      { id: "img-2019-2", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Ekip tác nghiệp năng động tại hậu trường" },
+      { id: "img-2019-3", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", caption: "Khoảnh khắc sân khấu ánh sáng bùng nổ" }
+    ],
     highlights: ["Đội ngũ nâng cấp lên 45 thành viên hoạt động"]
   },
   {
@@ -114,7 +122,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Sáng tạo không ranh giới",
     description: "Vượt qua giai đoạn giãn cách bằng các dự án ảnh concept tại nhà và các buổi phê bình ảnh online.",
     stats: [{ label: "Project Online", value: "05 chiến dịch" }, { label: "Tương tác", value: "+200% social" }],
-    images: [{ id: "img-2020-1", url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80", caption: "Bộ ảnh góc nhìn qua ô cửa sổ gây bão mạng" }],
+    images: [
+      { id: "img-2020-1", url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80", caption: "Bộ ảnh góc nhìn qua ô cửa sổ gây bão mạng" },
+      { id: "img-2020-2", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Concept chụp bóng chiếu đổ qua rèm cửa" },
+      { id: "img-2020-3", url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80", caption: "Chuỗi Postcard nghệ thuật gây quỹ cộng đồng" }
+    ],
     highlights: ["Ra mắt chuỗi postcard gây quỹ cộng đồng"]
   },
   {
@@ -123,7 +135,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Bùng nổ năng lượng nghệ thuật",
     description: "Tái khởi động với năng lượng nhân đôi, tập trung vào nhiếp ảnh tư liệu đời sống và con người.",
     stats: [{ label: "Chuyến đi", value: "3 miền đất nước" }, { label: "Tư liệu", value: "20.000+ file ảnh" }],
-    images: [{ id: "img-2021-1", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", caption: "Hành trình săn ảnh vùng cao Tây Bắc" }],
+    images: [
+      { id: "img-2021-1", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", caption: "Hành trình săn ảnh phóng sự vùng cao Tây Bắc" },
+      { id: "img-2021-2", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Nụ cười hồn nhiên trẻ em vùng núi" },
+      { id: "img-2021-3", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Đoàn phototrip chinh phục những cung đường đẹp" }
+    ],
     highlights: ["Bộ ảnh phóng sự đạt giải thưởng sáng tạo trẻ"]
   },
   {
@@ -132,7 +148,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Tích hợp đồ họa và nhiếp ảnh",
     description: "Illustris không chỉ chụp ảnh mà còn kết hợp thiết kế đồ họa 2D/3D để tạo ra các tác phẩm Digital Art.",
     stats: [{ label: "Digital Art", value: "30 tác phẩm" }, { label: "Designer", value: "10 nhân sự mới" }],
-    images: [{ id: "img-2022-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Triển lãm kết hợp công nghệ chiếu sáng nghệ thuật" }],
+    images: [
+      { id: "img-2022-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Triển lãm kết hợp công nghệ chiếu sáng nghệ thuật" },
+      { id: "img-2022-2", url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", caption: "Thử nghiệm tác phẩm kỹ thuật số kết hợp 3D Render" },
+      { id: "img-2022-3", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Không gian trưng bày thị giác hiện đại" }
+    ],
     highlights: ["Tái định vị thương hiệu thành Câu lạc bộ Sáng tạo Thị giác"]
   },
   {
@@ -141,7 +161,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Văn hóa gia đình bền chặt",
     description: "Xây dựng mạng lưới cựu thành viên vững chắc, hỗ trợ định hướng nghề nghiệp cho các thế hệ đi sau.",
     stats: [{ label: "Mạng lưới Alumni", value: "80+ anh chị" }, { label: "Mentorship", value: "10 cặp đôi" }],
-    images: [{ id: "img-2023-1", url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80", caption: "Đêm tiệc kết nối thường niên ấm cúng" }],
+    images: [
+      { id: "img-2023-1", url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80", caption: "Đêm tiệc kết nối Alumni thường niên ấm cúng" },
+      { id: "img-2023-2", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Buổi Mentorship trao đổi định hướng nghề nghiệp" },
+      { id: "img-2023-3", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Trao quỹ hỗ trợ đồ án cho thế hệ trẻ" }
+    ],
     highlights: ["Ra mắt quỹ hỗ trợ đồ án tốt nghiệp cho thành viên CLB"]
   },
   {
@@ -150,7 +174,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Nâng tầm tư duy nhiếp ảnh thương mại",
     description: "Cập nhật các xu hướng thiết bị hiện đại hàng đầu và quy trình làm việc chuẩn các agency lớn.",
     stats: [{ label: "Thiết bị nâng cấp", value: "Hệ máy Medium Format" }, { label: "Dự án lớn", value: "12 dự án thương mại" }],
-    images: [{ id: "img-2024-1", url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80", caption: "Sản xuất hình ảnh chất lượng cao trong môi trường studio" }],
+    images: [
+      { id: "img-2024-1", url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80", caption: "Sản xuất hình ảnh chất lượng cao trong môi trường studio" },
+      { id: "img-2024-2", url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", caption: "Trải nghiệm hệ thống máy quay phim Medium Format" },
+      { id: "img-2024-3", url: "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80", caption: "Workshop chuyên sâu cùng chuyên gia nhiếp ảnh quốc tế" }
+    ],
     highlights: ["Workshop cùng nhiếp ảnh gia quốc tế"]
   },
   {
@@ -159,7 +187,11 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     tagline: "Thập kỷ ánh sáng - Vạn dấu ấn khắc sâu",
     description: "Hành trình bền bỉ đầy tự hào từ một nhóm đam mê nhỏ trở thành biểu tượng thiết kế thị giác của giới trẻ.",
     stats: [{ label: "Ấn bản phát hành", value: "1.000 cuốn" }, { label: "Quy mô thành viên", value: "150+" }],
-    images: [{ id: "img-2025-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Chuẩn bị cho đại lễ kỷ niệm hành trình 10 năm" }],
+    images: [
+      { id: "img-2025-1", url: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800&q=80", caption: "Chuẩn bị cho đại lễ kỷ niệm hành trình 10 năm" },
+      { id: "img-2025-2", url: "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800&q=80", caption: "Bản in ấn phẩm sách ảnh Kỷ niệm 10 năm Illustris" },
+      { id: "img-2025-3", url: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80", caption: "Ghi hình phim tư liệu hành trình 1 thập kỷ" }
+    ],
     highlights: ["Sách ảnh kỷ niệm 'Illustris Decennium' chính thức phát hành"]
   },
   {
@@ -169,7 +201,9 @@ const INITIAL_TIMELINE_DATA: YearEvent[] = [
     description: "Nhìn về tương lai phía trước, Illustris tiếp tục dẫn đầu xu hướng nhiếp ảnh gắn liền với trách nhiệm xã hội và môi trường.",
     stats: [{ label: "Chiến dịch sinh thái", value: "5 dự án lớn" }, { label: "Địa điểm tiệc", value: "Bamos Trần Não" }],
     images: [
-      { id: "img-2026-1", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Sẵn sàng cho cột mốc kỷ niệm 10 năm tại Bamos" }
+      { id: "img-2026-1", url: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80", caption: "Sẵn sàng cho cột mốc kỷ niệm 10 năm tại Bamos" },
+      { id: "img-2026-2", url: "https://images.unsplash.com/photo-1452587925148-ce544e77e70d?auto=format&fit=crop&w=800&q=80", caption: "Chiến dịch nhiếp ảnh sinh thái Thấu kính Xanh" },
+      { id: "img-2026-3", url: "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80", caption: "Đại lễ Kỷ niệm 10 năm thành lập đại gia đình Illustris" }
     ],
     highlights: ["Chiến dịch ảnh 'Green Lens - Thấu kính Xanh'", "Gala Kỷ niệm 10 năm thành lập đại gia đình Illustris"]
   }
@@ -195,8 +229,8 @@ const NUMBERS_START_DELAY_SEC = 2.25;
 const TENS_SLIDE_START_RATIO = 0.4;
 
 // 5. KHOẢNG CÁCH MỜ DẦN CHỮ SỐ KHI RỜI TÂM CHÍNH (px):
-// Chữ số nằm cách tâm chính 370px càng xa sẽ mờ dần về 0% opacity
-const REEL_FADE_DISTANCE = 300;
+// Chữ số nằm cách tâm chính 370px càng xa sẽ mờ dần về 0% opacity (Rút ngắn để chữ mờ sớm hơn)
+const REEL_FADE_DISTANCE = 180;
 
 // 5. HỆ SỐ ĐƯỜNG CONG CUBIC-BEZIER CHO CHỮ SỐ [p1x, p1y, p2x, p2y]:
 // Ví dụ các bộ hệ số phổ biến:
@@ -238,11 +272,6 @@ const CLOCK_START_MINUTES_BEFORE_10 = 10;
 // - Tốc độ nấc nhảy kim đồng hồ (nấc/giây). Ví dụ: 5 = 5 nấc/giây, 10 = 10 nấc/giây, 1 = 1 nấc/giây
 const CLOCK_STEPS_PER_SEC = 1;
 
-// 7. BỘ ĐIỀU CHỈNH SCROLL PIN HERO (GSAP SCROLLTRIGGER - TỰ THAY ĐỔI):
-// - KHOẢNG CÁCH CUỘN PIN HERO (Tăng/giảm độ dài cuộn của trang Hero):
-// Ví dụ: '+=250%' (ngắn), '+=350%' (vừa), '+=450%' (dài), '+=600%' (rất dài)
-const HERO_PIN_SCROLL_DISTANCE = '+=450%';
-
 // - DURATION XUẤT HIỆN CỦA TỪNG THẺ TRONG CHUỖI CUỘN (GSAP Timeline units):
 // Tăng số này nếu muốn thẻ đó xuất hiện từ từ qua quãng đường cuộn dài hơn
 const HERO_TAGLINE_DURATION = 0.67;      // Chữ "NHIẾP ẢNH CHỨ?"
@@ -254,7 +283,7 @@ const HERO_BUFFER_PAUSE_DURATION = 1.67; // Khoảng dừng tĩnh cho người d
 // 8. BỘ ĐIỀU CHỈNH THẺ ĐẾM NGƯỢC MÀU TRẮNG (THIẾT KẾ CHUẨN MẪU EVENT)
 // ============================================================================
 // Bật/tắt thẻ đếm ngược:
-const SHOW_CLOCK_COUNTDOWN_CARD = true;
+const SHOW_CLOCK_COUNTDOWN_CARD = false;
 
 // Tiêu đề hiển thị trên góc trái thẻ:
 const CLOCK_COUNTDOWN_TITLE = 'Event';
@@ -291,13 +320,32 @@ export default function App() {
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [activeTab, setActiveTab] = useState('home');
 
+  // Marquee Gallery: server rows state + admin panel visibility
+  const [marqueeRows, setMarqueeRows] = useState<MarqueeImage[][]>([]);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  const fetchMarqueeData = async () => {
+    try {
+      const res = await fetch('/api/marquee');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.rows) setMarqueeRows(data.rows);
+      }
+    } catch (err) {
+      console.warn('[marquee] fetch error:', err instanceof Error ? err.message : err);
+    }
+  };
+
   // States cho Intro Animation
   const [introElapsedSec, setIntroElapsedSec] = useState(0);
   const [isIntroFinished, setIsIntroFinished] = useState(false);
 
   useEffect(() => {
     let startTime: number | null = null;
+    let lastRenderTime = 0;
     let animFrame: number;
+    const TARGET_FPS = 30; // Giới hạn 30 FPS cho dải số intro
+    const frameInterval = 1000 / TARGET_FPS;
 
     const step = (timestamp: number) => {
       if (!startTime) startTime = timestamp;
@@ -308,8 +356,11 @@ export default function App() {
         setIntroElapsedSec(TOTAL_INTRO_DURATION_SEC);
         setIsIntroFinished(true);
       } else {
-        const activeElapsed = Math.max(0, elapsed - INTRO_START_DELAY_SEC);
-        setIntroElapsedSec(activeElapsed);
+        if (timestamp - lastRenderTime >= frameInterval) {
+          lastRenderTime = timestamp;
+          const activeElapsed = Math.max(0, elapsed - INTRO_START_DELAY_SEC);
+          setIntroElapsedSec(activeElapsed);
+        }
         animFrame = requestAnimationFrame(step);
       }
     };
@@ -359,106 +410,125 @@ export default function App() {
   const currentMinAngle = (introMinuteCount * 6 - 90) % 360;
   const currentHourAngle = ((9 + introMinuteCount / 60) * 30 - 90) % 360;
 
-  // GSAP ScrollTrigger Pinning & Staged Animation References
-  const pinWrapperRef = useRef<HTMLDivElement>(null);
-  const homeRef = useRef<HTMLElement>(null);
+  // ============================================================================
+  // SETTING TRỰC TIẾP: Cấu hình Đệm Buffer & Vận tốc (Cơ chế 1: Native CSS Sticky + GPU Parallax)
+  // ============================================================================
+  const homeRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLElement>(null);
+  const homeSectionRef = useRef<HTMLElement>(null);
   const taglineRef = useRef<HTMLParagraphElement>(null);
-  const timeCardRef = useRef<HTMLDivElement>(null);
-  const locationCardRef = useRef<HTMLAnchorElement>(null);
+  const timeBlockRef = useRef<HTMLDivElement>(null);
+  const locationBlockRef = useRef<HTMLAnchorElement>(null);
+
+  // Parallax config — static constants, never change at runtime
+  // Track height formula: 100 + freezeVh*100 + 20  (from useScrollParallax default)
+  const HOME_FREEZE_VH = 1.0;
+  const TIMELINE_FREEZE_VH = 1.0;
+  const HOME_TRACK_HEIGHT_VH = 100 + HOME_FREEZE_VH * 100 + 20; // = 220vh
+  const HOME_TRACK_HEIGHT_STYLE = { height: `${HOME_TRACK_HEIGHT_VH}vh` };
+
+  const homeParallaxConfig = { freezeVh: HOME_FREEZE_VH, speed: 0.1, direction: 'up' as const };
+  const timelineParallaxConfig = { freezeVh: TIMELINE_FREEZE_VH, speed: 0.5, direction: 'up' as const, maxParallaxPx: 320 };
+
+  // Thresholds for home section visibility (in vh units)
+  const HOME_HIDE_THRESHOLD = (HOME_TRACK_HEIGHT_VH / 100) + 2.8; // = 4.0vh
+  const HOME_SHOW_THRESHOLD = (HOME_TRACK_HEIGHT_VH / 100) + 2.2; // = 4.4vh
+
+  // Scroll animation: use refs + direct DOM mutations to avoid React re-render on every scroll frame
+  const homeVisibleRef = useRef(true);
+  const showTaglineRef = useRef(false);
+  const showTimeRef = useRef(false);
+  const showLocationRef = useRef(false);
+
+  const activeTabRef = useRef(activeTab);
 
   useEffect(() => {
-    if (!pinWrapperRef.current || !homeRef.current || !timelineRef.current) return;
+    let ticking = false;
 
-    const ctx = gsap.context(() => {
-      const homeEl = homeRef.current!;
-      const timelineEl = timelineRef.current!;
-      const taglineEl = taglineRef.current;
-      const timeEl = timeCardRef.current;
-      const locationEl = locationCardRef.current;
+    const applyClass = (el: HTMLElement | null, add: boolean, shown: string, hidden: string) => {
+      if (!el) return;
+      if (add) { el.classList.add(...shown.split(' ')); el.classList.remove(...hidden.split(' ')); }
+      else { el.classList.add(...hidden.split(' ')); el.classList.remove(...shown.split(' ')); }
+    };
 
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          id: 'hero-pin-trigger',
-          trigger: pinWrapperRef.current,
-          start: 'top top',
-          end: HERO_PIN_SCROLL_DISTANCE,
-          pin: true,
-          scrub: 1,
-          anticipatePin: 1,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            if (self.progress < 0.72) {
-              setActiveTab('home');
-            } else if (self.progress >= 0.72 && self.progress < 0.98) {
-              setActiveTab('timeline');
+    // MASTER RAF LOOP: all scroll-driven DOM mutations happen here in a single frame
+    // to prevent competing rAF loops from causing mid-parallax flicker on multi-monitor setups.
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const sy = window.scrollY;
+          const vh = window.innerHeight || 1;
+          const scrollVh = sy / vh;
+
+          // --- Parallax: both computed and applied in same frame (no competing loops) ---
+          const homeResult = computeParallax(sy, vh, homeParallaxConfig);
+          const timelineResult = computeParallax(sy, vh, timelineParallaxConfig);
+
+          if (homeRef.current) {
+            homeRef.current.style.transform = `translate3d(0, ${homeResult.parallaxY}px, 0)`;
+          }
+          if (timelineRef.current) {
+            timelineRef.current.style.transform = `translate3d(0, ${timelineResult.parallaxY}px, 0)`;
+          }
+
+          // --- Home section opacity: direct DOM (no React re-render) ---
+          if (scrollVh > HOME_HIDE_THRESHOLD && homeVisibleRef.current) {
+            homeVisibleRef.current = false;
+            if (homeSectionRef.current) {
+              homeSectionRef.current.style.opacity = '0';
+              homeSectionRef.current.style.pointerEvents = 'none';
             }
-          },
-        },
-      });
+          } else if (scrollVh < HOME_SHOW_THRESHOLD && !homeVisibleRef.current) {
+            homeVisibleRef.current = true;
+            if (homeSectionRef.current) {
+              homeSectionRef.current.style.opacity = '1';
+              homeSectionRef.current.style.pointerEvents = 'auto';
+            }
+          }
 
-      // Initial state: Hide Tagline, Time & Location cards
-      if (taglineEl) gsap.set(taglineEl, { opacity: 0, y: 30 });
-      if (timeEl) gsap.set(timeEl, { opacity: 0, y: 30 });
-      if (locationEl) gsap.set(locationEl, { opacity: 0, y: 30 });
+          // --- Stagger reveal: direct classList toggle (no React re-render) ---
+          const newTagline = sy > 40;
+          const newTime = sy > 120;
+          const newLocation = sy > 200;
+          if (newTagline !== showTaglineRef.current) {
+            showTaglineRef.current = newTagline;
+            applyClass(taglineRef.current, newTagline, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+          }
+          if (newTime !== showTimeRef.current) {
+            showTimeRef.current = newTime;
+            applyClass(timeBlockRef.current, newTime, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+          }
+          if (newLocation !== showLocationRef.current) {
+            showLocationRef.current = newLocation;
+            applyClass(locationBlockRef.current, newLocation, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+          }
 
-      // Stage 1: Scroll -> Trigger display "NHIẾP ẢNH CHỨ?" text first
-      if (taglineEl) {
-        tl.to(taglineEl, {
-          opacity: 1,
-          y: 0,
-          duration: HERO_TAGLINE_DURATION,
-          ease: 'power2.out',
+          // --- Active Tab: only fires setState when tab actually changes ---
+          const galleryEl = document.getElementById('gallery');
+          const galleryTop = galleryEl ? galleryEl.offsetTop - sy : Infinity;
+
+          let newTab: string;
+          if (sy < vh * 1.2) newTab = 'home';
+          else if (galleryTop <= vh * 0.45) newTab = 'gallery';
+          else newTab = 'timeline';
+
+          if (activeTabRef.current !== newTab) {
+            activeTabRef.current = newTab;
+            setActiveTab(newTab);
+          }
+
+          ticking = false;
         });
+        ticking = true;
       }
+    };
 
-      // Stage 2: Scroll -> Trigger display THỜI GIAN card
-      if (timeEl) {
-        tl.to(timeEl, {
-          opacity: 1,
-          y: 0,
-          duration: HERO_TIME_CARD_DURATION,
-          ease: 'power2.out',
-        });
-      }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll(); // initial trigger
 
-      // Stage 3: Scroll -> Trigger display ĐỊA ĐIỂM card
-      if (locationEl) {
-        tl.to(locationEl, {
-          opacity: 1,
-          y: 0,
-          duration: HERO_LOCATION_CARD_DURATION,
-          ease: 'power2.out',
-        });
-      }
-
-      // Stage 4: Scroll -> Buffer pause cho người dùng đọc thông tin
-      tl.to({}, { duration: HERO_BUFFER_PAUSE_DURATION });
-
-      // Stage 5: Scroll -> Timeline slides UP over Home by 30%
-      tl.to(timelineEl, {
-        y: () => -homeEl.offsetHeight * 0.3,
-        ease: 'none',
-        duration: 0.2,
-      });
-
-      // Stage 6: Scroll -> Both move upward together
-      tl.to(timelineEl, {
-        y: () => -homeEl.offsetHeight * 1.0,
-        ease: 'none',
-        duration: 0.3,
-      }, 'phase2')
-        .to(homeEl, {
-          y: () => -homeEl.offsetHeight * 0.35,
-          opacity: 0.25,
-          ease: 'none',
-          duration: 0.3,
-        }, 'phase2');
-    }, pinWrapperRef);
-
-    return () => ctx.revert();
+    return () => window.removeEventListener('scroll', handleScroll);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   // Disable Zoom in/out via Keyboard Shortcuts, Mouse Wheel, and Touch Gestures
   useEffect(() => {
     // 1. Chặn Zoom bằng Phím tắt (Ctrl/Cmd + +, -, =, 0) & Ctrl + Wheel
@@ -507,7 +577,7 @@ export default function App() {
     };
   }, []);
 
-  // Smooth Navigation Handler compatible with GSAP ScrollTrigger
+  // Smooth Navigation Handler compatible with Native Scroll
   const handleNavClick = (targetId: string, e: React.MouseEvent) => {
     e.preventDefault();
     setActiveTab(targetId);
@@ -515,21 +585,11 @@ export default function App() {
     if (targetId === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (targetId === 'timeline') {
-      const st = ScrollTrigger.getById('hero-pin-trigger');
-      if (st) {
-        // Scroll to the point where Timeline has slid over Home (at 78% of the pin range)
-        const targetY = st.start + (st.end - st.start) * 0.78;
-        window.scrollTo({ top: targetY, behavior: 'smooth' });
-      } else {
-        const el = document.getElementById('timeline');
-        if (el) {
-          window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 80, behavior: 'smooth' });
-        }
-      }
+      window.scrollTo({ top: window.innerHeight * ((HOME_TRACK_HEIGHT_VH / 100) + 0.1), behavior: 'smooth' });
     } else {
       const el = document.getElementById(targetId);
       if (el) {
-        const headerOffset = 80;
+        const headerOffset = 56;
         const elementPosition = el.getBoundingClientRect().top;
         const offsetPosition = elementPosition + window.scrollY - headerOffset;
         window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
@@ -537,7 +597,7 @@ export default function App() {
     }
   };
 
-  // Auto-sync activeTab for Gallery and Wish sections using IntersectionObserver
+  // Auto-sync activeTab for Gallery section using IntersectionObserver
   useEffect(() => {
     const handleIntersect: IntersectionObserverCallback = (entries) => {
       entries.forEach((entry) => {
@@ -554,28 +614,13 @@ export default function App() {
     });
 
     const galleryEl = document.getElementById('gallery');
-    const wishEl = document.getElementById('wish');
-
     if (galleryEl) observer.observe(galleryEl);
-    if (wishEl) observer.observe(wishEl);
 
     return () => observer.disconnect();
   }, []);
 
   // Shared server states
   const [recapImages, setRecapImages] = useState<RecapImage[]>([]);
-  const [wishes, setWishes] = useState<Wish[]>([]);
-  const [timelineComments, setTimelineComments] = useState<TimelineComment[]>([]);
-
-  // States for Wish Form
-  const [newWishName, setNewWishName] = useState("");
-  const [newWishRole, setNewWishRole] = useState("");
-  const [newWishContent, setNewWishContent] = useState("");
-
-  // States for Timeline Comment Form
-  const [commentName, setCommentName] = useState("");
-  const [commentContent, setCommentContent] = useState("");
-  const [commentImage, setCommentImage] = useState<string | null>(null);
 
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [countdown, setCountdown] = useState({ days: '00', hours: '00', minutes: '00', seconds: '00' });
@@ -607,17 +652,18 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (data.images) setRecapImages(data.images);
-        if (data.wishes) setWishes(data.wishes);
-        if (data.comments) setTimelineComments(data.comments);
       }
     } catch (err) {
-      console.error("Lỗi đồng bộ dữ liệu server:", err);
+      console.warn("Lỗi đồng bộ dữ liệu server:", err instanceof Error ? err.message : err);
     }
   };
 
   useEffect(() => {
     fetchSharedData();
     const syncInterval = setInterval(fetchSharedData, 5000);
+
+    // Also load marquee rows from server on mount
+    fetchMarqueeData();
 
     // Event countdown
     const targetDate = new Date('2026-07-26T16:30:00').getTime();
@@ -647,7 +693,7 @@ export default function App() {
     const timerInterval = setInterval(updateTimer, 1000);
 
     // IntersectionObserver to highlight current active section while scrolling
-    const sections = ['home', 'timeline', 'gallery', 'wish'];
+    const sections = ['home', 'timeline', 'gallery'];
     const observerOptions = {
       root: null,
       rootMargin: '-30% 0px -60% 0px', // Trigger when section occupies the sweet middle spot of viewport
@@ -677,8 +723,12 @@ export default function App() {
     };
   }, []);
 
-  const currentEvent = timelineData.find(e => e.year === selectedYear) || timelineData[timelineData.length - 1];
-  const commentsForYear = timelineComments.filter(c => c.year === selectedYear);
+  const currentEvent = useMemo(
+    () => timelineData.find((e) => e.year === selectedYear) || timelineData[timelineData.length - 1],
+    [timelineData, selectedYear]
+  );
+
+
 
   // Compress uploaded images
   const processImage = (file: File, callback: (base64: string) => void) => {
@@ -734,7 +784,7 @@ export default function App() {
           });
           if (response.ok) fetchSharedData();
         } catch (err) {
-          console.error("Lỗi đẩy ảnh lên server:", err);
+          console.warn("Lỗi đẩy ảnh lên server:", err instanceof Error ? err.message : err);
         }
       });
     }
@@ -751,7 +801,7 @@ export default function App() {
       });
       fetchSharedData();
     } catch (err) {
-      console.error(err);
+      console.warn("Lỗi like photo:", err instanceof Error ? err.message : err);
     }
   };
 
@@ -766,88 +816,21 @@ export default function App() {
       });
       fetchSharedData();
     } catch (err) {
-      console.error(err);
+      console.warn("Lỗi xoá photo:", err instanceof Error ? err.message : err);
     }
   };
 
-  // Add Wish
-  const handleAddWish = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newWishName.trim() || !newWishContent.trim()) return;
 
-    const newWish: Wish = {
-      id: `w-${Date.now()}`,
-      name: newWishName.trim(),
-      role: newWishRole.trim() || "Thành viên gia đình",
-      content: newWishContent.trim(),
-      date: new Date().toLocaleDateString('vi-VN')
-    };
-
-    try {
-      const response = await fetch('/api/photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'WISH', data: newWish }),
-      });
-      if (response.ok) {
-        setNewWishName("");
-        setNewWishRole("");
-        setNewWishContent("");
-        fetchSharedData();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Upload image for timeline comment
-  const handleCommentImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processImage(file, (base64) => setCommentImage(base64));
-    }
-  };
-
-  // Add Timeline Comment
-  const handleAddTimelineComment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentName.trim() || !commentContent.trim()) return;
-
-    const newComment: TimelineComment = {
-      id: `cmt-${Date.now()}`,
-      year: selectedYear,
-      name: commentName.trim(),
-      content: commentContent.trim(),
-      imageUrl: commentImage || undefined,
-      date: new Date().toLocaleDateString('vi-VN')
-    };
-
-    try {
-      const response = await fetch('/api/photos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'TIMELINE_COMMENT', data: newComment }),
-      });
-      if (response.ok) {
-        setCommentName("");
-        setCommentContent("");
-        setCommentImage(null);
-        fetchSharedData();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-black text-white relative font-sans overflow-x-hidden adaptive-scale-wrapper">
+    <div className="min-h-screen bg-black text-white relative font-sans adaptive-scale-wrapper">
       {/* Background radial glowing effects */}
       <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px] pointer-events-none z-0" />
       <div className="absolute bottom-10 left-1/4 w-[400px] h-[400px] bg-blue-950/15 rounded-full blur-[100px] pointer-events-none z-0" />
 
       {/* HEADER */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-black/60 backdrop-blur-md border-b border-white/[0.04]">
-        <div className="w-full pl-4 pr-6 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 h-20 flex items-center justify-between">
+        <div className="w-full pl-4 pr-6 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 h-14 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
             <NextImage
@@ -855,7 +838,7 @@ export default function App() {
               alt="Illustris Logo"
               width={64}
               height={45}
-              className="h-11 w-auto object-contain -translate-y-1"
+              className="h-9 w-auto object-contain"
               priority
             />
             <div>
@@ -865,11 +848,11 @@ export default function App() {
           </div>
 
           {/* Navigation with smooth anchors */}
-          <nav className="flex items-center gap-8 md:gap-12 text-[12px] tracking-[0.15em] uppercase font-medium text-slate-400 font-condensed">
+          <nav className="flex items-center gap-8 md:gap-12 text-[17px] tracking-[0.12em] uppercase font-semibold text-slate-400 font-condensed">
             <a
               href="#home"
               onClick={(e) => handleNavClick('home', e)}
-              className={`hover:text-white transition-colors relative py-2 ${activeTab === 'home' ? 'text-white font-semibold' : ''}`}
+              className={`hover:text-white transition-colors relative py-1 ${activeTab === 'home' ? 'text-white font-bold' : ''}`}
             >
               Trang chủ
               {activeTab === 'home' && (
@@ -879,7 +862,7 @@ export default function App() {
             <a
               href="#timeline"
               onClick={(e) => handleNavClick('timeline', e)}
-              className={`hover:text-white transition-colors relative py-2 ${activeTab === 'timeline' ? 'text-white font-semibold' : ''}`}
+              className={`hover:text-white transition-colors relative py-1 ${activeTab === 'timeline' ? 'text-white font-bold' : ''}`}
             >
               Timeline
               {activeTab === 'timeline' && (
@@ -889,20 +872,10 @@ export default function App() {
             <a
               href="#gallery"
               onClick={(e) => handleNavClick('gallery', e)}
-              className={`hover:text-white transition-colors relative py-2 ${activeTab === 'gallery' ? 'text-white font-semibold' : ''}`}
+              className={`hover:text-white transition-colors relative py-1 ${activeTab === 'gallery' ? 'text-white font-bold' : ''}`}
             >
               Thư viện
               {activeTab === 'gallery' && (
-                <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-500 rounded-full" />
-              )}
-            </a>
-            <a
-              href="#wish"
-              onClick={(e) => handleNavClick('wish', e)}
-              className={`hover:text-white transition-colors relative py-2 ${activeTab === 'wish' ? 'text-white font-semibold' : ''}`}
-            >
-              Lời chúc
-              {activeTab === 'wish' && (
                 <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-blue-500 rounded-full" />
               )}
             </a>
@@ -910,757 +883,480 @@ export default function App() {
         </div>
       </header>
 
-      {/* GSAP PINNING CONTAINER FOR HOME AND TIMELINE */}
-      <div ref={pinWrapperRef} className="relative w-full">
+      {/* NATIVE SCROLL PINNING CONTAINER FOR HOME */}
+      <div className="relative w-full" style={HOME_TRACK_HEIGHT_STYLE}>
         {/* 1. HERO SECTION (ID: home) */}
-        <section
-          id="home"
-          ref={homeRef}
-          className="min-h-screen pt-20 w-full flex flex-col justify-center relative z-10 overflow-hidden"
-        >
-          {/* Expanded Hero Content Box (Canh sát lề trái đồng bộ với Logo) */}
-          <div className="w-full pl-4 pr-6 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 z-10 py-12 -translate-y-10 md:-translate-y-16">
-            {/* TÙY CHỈNH KHOẢNG CÁCH GAP TRÊN/DƯỚI CHÍNH: Thay space-y-6 thành space-y-8, space-y-10, space-y-12,... */}
-            <div className="max-w-4xl space-y-6">
-              {/* TÙY CHỈNH KHOẢNG CÁCH GIỮA CÁC DÒNG TIÊU ĐỀ & CÂU KHẨU HIỆU: Thay space-y-2 thành space-y-3, space-y-4,... */}
-              <div className="space-y-2">
-                <span className="text-base md:text-lg font-semibold tracking-[0.35em] text-white/80 uppercase block font-condensed mb-2">
-                  KỶ NIỆM 10 NĂM THÀNH LẬP
-                </span>
-                <h1 className="text-7xl md:text-[120px] font-perandory tracking-wide leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#0a08b6] via-[#46c2ff] to-white drop-shadow-[0_10px_25px_rgba(10,8,182,0.35)] -mb-1">
-                  ILLUSTRIS
-                </h1>
-                <h2 className="text-sm md:text-base font-medium tracking-[0.25em] text-white/75 uppercase leading-none font-condensed flex items-center pt-1">
-                  <Typewriter
-                    texts={[
-                      "  10 NĂM",
-                      "  MỘT HÀNH TRÌNH",
-                      "  TRIỆU KHOẢNH KHẮC",
-                      " 10 NĂM – MỘT HÀNH TRÌNH – TRIỆU KHOẢNH KHẮC"
-                    ]}
-                    ease={{ duration: 0.07, delay: 1.5 }}
-                    deleteSpeed={0.04}
-                    showCursor={true}
-                    cursorChar="_"
-                    typedColor="rgba(255, 255, 255, 0.85)"
-                    cursorColor="rgba(255, 255, 255, 0.85)"
-                  />
-                </h2>
-                {/* NHIẾP ẢNH CHỨ? - Tùy chỉnh pt-1 hoặc my-2 để tăng khoảng cách cách biệt (ẩn mặc định bằng opacity-0 translate-y-7) */}
-                <p ref={taglineRef} className="font-serif text-xl md:text-2xl italic font-normal text-white/80 tracking-wide pt-1 opacity-0 translate-y-7">
-                  NHIẾP ẢNH CHỨ?
-                </p>
-              </div>
-
-              {/* Event Info - TÙY CHỈNH GAP VỚI ĐƯỜNG KẺ TRÊN & GAP NGANG GIỮA THỜI GIAN/ĐỊA ĐIỂM (pt-6 mt-6 gap-10 md:gap-14) */}
-              <div className="flex flex-row items-start gap-10 md:gap-14 pt-6 border-t border-white/[0.06] mt-6 select-none">
-                {/* Time (ẩn mặc định bằng opacity-0 translate-y-7) */}
-                <div ref={timeCardRef} className="flex gap-4 items-start opacity-0 translate-y-7">
-                  <svg viewBox="0 0 32 32" className="w-8 h-8 md:w-9 md:h-9 text-[#5d66d0] shrink-0 mt-0.5" fill="none" stroke="currentColor">
-                    <rect x="3" y="6" width="26" height="22" rx="4" strokeWidth="1.8" />
-                    <path d="M8 3v4M16 3v4M24 3v4" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M3 12h26" strokeWidth="1.5" />
-                    <rect x="7" y="16" width="4" height="4" strokeWidth="1.5" />
-                    <circle cx="16" cy="18" r="1" fill="currentColor" />
-                    <circle cx="21" cy="18" r="1" fill="currentColor" />
-                    <circle cx="26" cy="18" r="1" fill="currentColor" opacity="0.6" />
-                    <circle cx="16" cy="23" r="1" fill="currentColor" />
-                    <circle cx="21" cy="23" r="1" fill="currentColor" />
-                    <circle cx="26" cy="23" r="1" fill="currentColor" opacity="0.6" />
-                  </svg>
-                  <div className="space-y-1 min-w-0 font-condensed">
-                    <span className="text-xs text-white tracking-[0.25em] font-medium uppercase block">THỜI GIAN</span>
-                    <p className="text-base md:text-lg font-medium text-[#5d66d0] leading-tight font-sans">26.07.2026</p>
-                    <p className="text-xs md:text-sm text-[#5d66d0] font-normal font-sans">16:30 - 19:45</p>
-                  </div>
-                </div>
-
-                {/* Location (Clickable Google Maps link with max-w-[220px] - ẩn mặc định bằng opacity-0 translate-y-7) */}
-                <a
-                  ref={locationCardRef}
-                  href="https://www.google.com/maps/search/?api=1&query=Bamos+Tr%E1%BA%A7n+N%C3%A3o+9%2F8+%C4%90%C6%B0%E1%BB%9Dng+s%E1%BB%91+10+B%C3%ACnh+Kh%C3%A1nh+An+Kh%C3%A1nh+H%E1%BB%93+Ch%C3%AD+Minh"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title="Mở vị trí Bamos Trần Não trên Google Maps"
-                  className="group flex gap-4 items-start max-w-[220px] transition-all cursor-pointer opacity-0 translate-y-7"
+        <div className="w-full h-[100svh] sticky top-0 z-10 pointer-events-none">
+          <div className="absolute inset-0 pointer-events-auto">
+            <section
+              id="home"
+              ref={homeSectionRef}
+              className="w-full h-full flex flex-col justify-center overflow-hidden pt-20"
+              style={{ opacity: '1', pointerEvents: 'auto', willChange: 'opacity' }}
+            >
+                <div
+                  ref={homeRef}
+                  className="w-full h-full flex flex-col justify-center relative"
+                  style={{ willChange: 'transform' }}
                 >
-                  <svg viewBox="0 0 36 36" className="w-9 h-9 md:w-10 md:h-10 text-[#5d66d0] group-hover:text-blue-400 shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor">
-                    <path
-                      d="M18 3C12.5 3 8 7.5 8 13C8 20 18 27.5 18 27.5C18 27.5 28 20 28 13C28 7.5 23.5 3 18 3Z"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                    />
-                    <circle cx="18" cy="12" r="3.5" strokeWidth="1.8" />
-                    <ellipse cx="18" cy="29" rx="12" ry="4" strokeWidth="1.8" />
-                  </svg>
-                  <div className="space-y-1 min-w-0 font-condensed">
-                    <span className="text-xs text-white tracking-[0.25em] font-medium uppercase block">ĐỊA ĐIỂM</span>
-                    <p className="text-base md:text-lg font-medium text-[#5d66d0] group-hover:text-blue-400 group-hover:underline leading-tight font-sans transition-colors flex items-center gap-1">
-                      <span>Bamos Trần Não</span>
-                    </p>
-                    <p className="text-xs md:text-sm text-white/90 font-light leading-relaxed font-sans">
-                      9/8 Đường số 10, Bình Khánh, An Khánh, Hồ Chí Minh
-                    </p>
-                  </div>
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* 
-            Master Clock Container (Tất cả bánh răng + Kim đồng hồ relative 100% theo tỉ lệ SVG Clock 1440x810)
-            - Khóa aspect-ratio [1440/810] giúp tọa độ % của kim đồng hồ và bánh răng luôn KHỚP CHÍNH XÁC VỚI FILE SVG ở MỌI ĐỘ PHÂN GIẢI
-          */}
-          <div className="absolute top-0 right-0 h-full pointer-events-none z-0 opacity-100 select-none overflow-visible">
-            <div ref={masterClockRef} className="relative h-full aspect-[1440/810] flex items-end justify-end overflow-visible">
-              {/* Layer 1: Nền SVG Clock chính */}
-              <NextImage
-                src="/clock.svg"
-                alt="Clock Graphic Base"
-                width={1440}
-                height={810}
-                className="w-full h-full object-contain object-right-bottom relative z-1"
-                priority
-              />
-
-              {/* Layer 0.5: Thẻ đếm ngược màu trắng (Nằm dưới clock.svg) */}
-              {SHOW_CLOCK_COUNTDOWN_CARD && (() => {
-                const daysStr = (countdown.days || '00').padStart(2, '0');
-                const hoursStr = (countdown.hours || '00').padStart(2, '0');
-                const minsStr = (countdown.minutes || '00').padStart(2, '0');
-
-                return (
-                  <div
-                    className="absolute pointer-events-auto z-0 select-none transition-opacity duration-300"
-                    style={{
-                      opacity: masterClockScale === null ? 0 : 1, // Ẩn hoàn toàn cho đến khi tính xong kích thước
-                      // Chuyển đổi tọa độ 1440x810 sang % tương đối để đồng bộ tuyệt đối với tỉ lệ thẻ SVG
-                      right: `${((1440 - CLOCK_COUNTDOWN_X) / 1440) * 100}%`,
-                      top: `${(CLOCK_COUNTDOWN_Y / 810) * 100}%`,
-                      transform: `scale(${CLOCK_COUNTDOWN_SCALE * (masterClockScale || 1)}) rotate(${CLOCK_COUNTDOWN_ROTATION})`,
-                      transformOrigin: 'top right',
-                    }}
-                  >
-                    <div className="bg-white text-slate-900 rounded-2xl p-4 sm:p-5 shadow-[0_25px_60px_rgba(0,0,0,0.3)] border border-slate-200/90 flex flex-col gap-3.5 w-fit">
-                      {/* Header row: Title on left, Chevron circle on right */}
-                      <div className="flex items-center justify-between px-0.5 gap-4">
-                        <h4 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight font-sans">
-                          {CLOCK_COUNTDOWN_TITLE}
-                        </h4>
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300/90 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shrink-0">
-                          <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5 stroke-[2]" />
-                        </div>
+                  {/* Expanded Hero Content Box */}
+                  <div className="w-full pl-4 pr-6 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 z-10 py-12 -translate-y-10 md:-translate-y-16">
+                    {/* TÙY CHỈNH KHOẢNG CÁCH GAP TRÊN/DƯỚI CHÍNH: Thay space-y-6 thành space-y-8, space-y-10, space-y-12,... */}
+                    <div className="max-w-4xl space-y-6">
+                      {/* TÙY CHỈNH KHOẢNG CÁCH GIỮA CÁC DÒNG TIÊU ĐỀ & CÂU KHẨU HIỆU: Thay space-y-2 thành space-y-3, space-y-4,... */}
+                      <div className="space-y-2">
+                        <span className="text-base md:text-lg font-semibold tracking-[0.35em] text-white/80 uppercase block font-condensed mb-2">
+                          KỶ NIỆM 10 NĂM THÀNH LẬP
+                        </span>
+                        <h1 className="text-7xl md:text-[120px] font-perandory tracking-wide leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#0a08b6] via-[#46c2ff] to-white drop-shadow-[0_10px_25px_rgba(10,8,182,0.35)] -mb-1">
+                          ILLUSTRIS
+                        </h1>
+                        <h2 className="text-sm md:text-base font-medium tracking-[0.25em] text-white/75 uppercase leading-none font-condensed flex items-center pt-1">
+                          <Typewriter
+                            texts={[
+                              "  10 NĂM",
+                              "  MỘT HÀNH TRÌNH",
+                              "  TRIỆU KHOẢNH KHẮC",
+                              " 10 NĂM – MỘT HÀNH TRÌNH – TRIỆU KHOẢNH KHẮC"
+                            ]}
+                            ease={{ duration: 0.07, delay: 1.5 }}
+                            deleteSpeed={0.04}
+                            showCursor={true}
+                            cursorChar="_"
+                            typedColor="rgba(255, 255, 255, 0.85)"
+                            cursorColor="rgba(255, 255, 255, 0.85)"
+                          />
+                        </h2>
+                        {/* NHIẾP ẢNH CHỨ? */}
+                        <p
+                          ref={taglineRef}
+                          className="font-serif text-xl md:text-2xl italic font-normal text-white/80 tracking-wide pt-1 transition-all duration-700 ease-out opacity-0 translate-y-7"
+                        >
+                          NHIẾP ẢNH CHỨ?
+                        </p>
                       </div>
 
-                      {/* Digits and labels row */}
-                      <div className="flex items-start justify-center gap-1.5 sm:gap-2 pt-0.5">
-                        {/* Days group */}
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="flex items-center gap-1">
-                            <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
-                              {daysStr[0]}
-                            </div>
-                            <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
-                              {daysStr[1]}
-                            </div>
+                      {/* Event Info */}
+                      <div className="flex flex-row items-start gap-10 md:gap-14 pt-6 mt-6 select-none">
+                        {/* Time */}
+                        <div
+                          ref={timeBlockRef}
+                          className="flex gap-4 items-start transition-all duration-700 delay-100 ease-out opacity-0 translate-y-7"
+                        >
+                          <svg viewBox="0 0 32 32" className="w-8 h-8 md:w-9 md:h-9 text-[#5d66d0] shrink-0 mt-0.5" fill="none" stroke="currentColor">
+                            <rect x="3" y="6" width="26" height="22" rx="4" strokeWidth="1.8" />
+                            <path d="M8 3v4M16 3v4M24 3v4" strokeWidth="1.8" strokeLinecap="round" />
+                            <path d="M3 12h26" strokeWidth="1.5" />
+                            <rect x="7" y="16" width="4" height="4" strokeWidth="1.5" />
+                            <circle cx="16" cy="18" r="1" fill="currentColor" />
+                            <circle cx="21" cy="18" r="1" fill="currentColor" />
+                            <circle cx="26" cy="18" r="1" fill="currentColor" opacity="0.6" />
+                            <circle cx="16" cy="23" r="1" fill="currentColor" />
+                            <circle cx="21" cy="23" r="1" fill="currentColor" />
+                            <circle cx="26" cy="23" r="1" fill="currentColor" opacity="0.6" />
+                          </svg>
+                          <div className="space-y-1 min-w-0 font-condensed">
+                            <span className="text-xs text-white tracking-[0.25em] font-medium uppercase block">THỜI GIAN</span>
+                            <p className="text-base md:text-lg font-medium text-[#5d66d0] leading-tight font-sans">26.07.2026</p>
+                            <p className="text-xs md:text-sm text-[#5d66d0] font-normal font-sans">16:30 - 19:45</p>
                           </div>
-                          <span className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight font-sans mt-0.5">
-                            days
-                          </span>
                         </div>
 
-                        {/* Colon */}
-                        <div className="h-12 sm:h-17 flex items-center justify-center text-xl sm:text-2xl font-bold text-slate-900 px-0.5">:</div>
-
-                        {/* Hours group */}
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="flex items-center gap-1">
-                            <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
-                              {hoursStr[0]}
-                            </div>
-                            <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
-                              {hoursStr[1]}
-                            </div>
+                        {/* Location (Clickable Google Maps link with max-w-[220px]) */}
+                        <a
+                          ref={locationBlockRef}
+                          href="https://www.google.com/maps/search/?api=1&query=Bamos+Tr%E1%BA%A7n+N%C3%A3o+9%2F8+%C4%90%C6%B0%E1%BB%9Dng+s%E1%BB%91+10+B%C3%ACnh+Kh%C3%A1nh+An+Kh%C3%A1nh+H%E1%BB%93+Ch%C3%AD+Minh"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Mở vị trí Bamos Trần Não trên Google Maps"
+                          className="group flex gap-4 items-start max-w-[220px] transition-all duration-700 delay-200 ease-out cursor-pointer pointer-events-auto opacity-0 translate-y-7"
+                        >
+                          <svg viewBox="0 0 36 36" className="w-9 h-9 md:w-10 md:h-10 text-[#5d66d0] group-hover:text-blue-400 shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor">
+                            <path
+                              d="M18 3C12.5 3 8 7.5 8 13C8 20 18 27.5 18 27.5C18 27.5 28 20 28 13C28 7.5 23.5 3 18 3Z"
+                              strokeWidth="1.8"
+                              strokeLinejoin="round"
+                            />
+                            <circle cx="18" cy="12" r="3.5" strokeWidth="1.8" />
+                            <ellipse cx="18" cy="29" rx="12" ry="4" strokeWidth="1.8" />
+                          </svg>
+                          <div className="space-y-1 min-w-0 font-condensed">
+                            <span className="text-xs text-white tracking-[0.25em] font-medium uppercase block">ĐỊA ĐIỂM</span>
+                            <p className="text-base md:text-lg font-medium text-[#5d66d0] group-hover:text-blue-400 group-hover:underline leading-tight font-sans transition-colors flex items-center gap-1">
+                              <span>Bamos Trần Não</span>
+                            </p>
+                            <p className="text-xs md:text-sm text-white/90 font-light leading-relaxed font-sans">
+                              9/8 Đường số 10, Bình Khánh, An Khánh, Hồ Chí Minh
+                            </p>
                           </div>
-                          <span className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight font-sans mt-0.5">
-                            hours
-                          </span>
-                        </div>
-
-                        {/* Colon */}
-                        <div className="h-12 sm:h-17 flex items-center justify-center text-xl sm:text-2xl font-bold text-slate-900 px-0.5">:</div>
-
-                        {/* Minutes group */}
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="flex items-center gap-1">
-                            <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
-                              {minsStr[0]}
-                            </div>
-                            <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
-                              {minsStr[1]}
-                            </div>
-                          </div>
-                          <span className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight font-sans mt-0.5">
-                            minutes
-                          </span>
-                        </div>
+                        </a>
                       </div>
                     </div>
                   </div>
-                );
-              })()}
 
-              {/* Layer 2: Bánh răng phụ 1 (Bên phải) */}
-              <div className="absolute top-[80%] left-[93%] -translate-x-1/2 -translate-y-1/2 w-[30%] opacity-80 rotate-10 z-1">
-                <ClockGears speed={5} reverse className="w-full h-auto" />
-              </div>
+                  {/* 
+            Master Clock Container (Tất cả bánh răng + Kim đồng hồ relative 100% theo tỉ lệ SVG Clock 1440x810)
+            - Khóa aspect-ratio [1440/810] giúp tọa độ % của kim đồng hồ và bánh răng luôn KHỚP CHÍNH XÁC VỚI FILE SVG ở MỌI ĐỘ PHÂN GIẢI
+          */}
+                  <div className="absolute top-0 right-0 h-full pointer-events-none z-0 opacity-100 select-none overflow-hidden">
+                    <div ref={masterClockRef} className="relative h-full aspect-[1440/810] flex items-end justify-end overflow-visible">
+                      {/* Layer 1: Nền SVG Clock chính */}
+                      <NextImage
+                        src="/clock.svg"
+                        alt="Clock Graphic Base"
+                        width={1440}
+                        height={810}
+                        className="w-full h-full object-contain object-right-bottom relative z-1"
+                        priority
+                      />
 
-              {/* Layer 2: Bánh răng phụ 2 (Bên phải) */}
-              <div className="absolute top-[73%] left-[95%] -translate-x-1/2 -translate-y-1/2 w-[25%] opacity-40 rotate-280 z-1">
-                <ClockGears speed={10} className="w-full h-auto" />
-              </div>
+                      {/* Layer 0.5: Thẻ đếm ngược màu trắng (Nằm dưới clock.svg) */}
+                      {SHOW_CLOCK_COUNTDOWN_CARD && (() => {
+                        const daysStr = (countdown.days || '00').padStart(2, '0');
+                        const hoursStr = (countdown.hours || '00').padStart(2, '0');
+                        const minsStr = (countdown.minutes || '00').padStart(2, '0');
 
-              {/* Layer 2: Ngôi sao riêng biệt tại translate(1200, 405) (Tách riêng để nằm trên clock.svg nhưng nằm DƯỚI kim đồng hồ z-3) */}
-              <svg
-                viewBox="0 0 1440 810"
-                className="absolute inset-0 w-full h-full pointer-events-none z-2 select-none"
-              >
-                <defs>
-                  <linearGradient id="starBlueGradIsolated" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#0a086b" />
-                    <stop offset="20%" stopColor="#211cdb" />
-                    <stop offset="100%" stopColor="#38bdf8" />
-                  </linearGradient>
-                  <g id="star10ShapeIsolated">
-                    <polygon
-                      points="150,10 162.4,112.0 232.3,36.7 182.4,126.5 283.1,106.7 190,150 283.1,193.3 182.4,173.5 232.3,263.3 162.4,188.0 150,290 137.6,188.0 67.7,263.3 117.6,173.5 16.9,193.3 110,150 16.9,106.7 117.6,126.5 67.7,36.7 137.6,112.0"
-                      transform="translate(-150, -150)"
-                    />
-                  </g>
-                </defs>
-                <g transform="translate(1200, 405) scale(0.45)">
-                  <use href="#star10ShapeIsolated" fill="url(#starBlueGradIsolated)" />
-                </g>
-              </svg>
+                        return (
+                          <div
+                            className="absolute pointer-events-auto z-0 select-none transition-opacity duration-300"
+                            style={{
+                              opacity: masterClockScale === null ? 0 : 1, // Ẩn hoàn toàn cho đến khi tính xong kích thước
+                              // Chuyển đổi tọa độ 1440x810 sang % tương đối để đồng bộ tuyệt đối với tỉ lệ thẻ SVG
+                              right: `${((1440 - CLOCK_COUNTDOWN_X) / 1440) * 100}%`,
+                              top: `${(CLOCK_COUNTDOWN_Y / 810) * 100}%`,
+                              transform: `scale(${CLOCK_COUNTDOWN_SCALE * (masterClockScale || 1)}) rotate(${CLOCK_COUNTDOWN_ROTATION})`,
+                              transformOrigin: 'top right',
+                            }}
+                          >
+                            <div className="bg-white text-slate-900 rounded-2xl p-4 sm:p-5 shadow-[0_25px_60px_rgba(0,0,0,0.3)] border border-slate-200/90 flex flex-col gap-3.5 w-fit">
+                              {/* Header row: Title on left, Chevron circle on right */}
+                              <div className="flex items-center justify-between px-0.5 gap-4">
+                                <h4 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight font-sans">
+                                  {CLOCK_COUNTDOWN_TITLE}
+                                </h4>
+                                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-slate-300/90 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer shrink-0">
+                                  <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5 stroke-[2]" />
+                                </div>
+                              </div>
 
-              {/* Layer 3: Đồng hồ 2 Kim xoay bên phải (Nằm ĐÈ LÊN ngôi sao z-2) */}
-              <div className="absolute top-[78.5%] left-[93.5%] -translate-x-1/2 -translate-y-1/2 w-[47%] aspect-square flex items-center justify-center pointer-events-auto hidden sm:flex z-3 rotate-[-5]">
-                <GradientClock
-                  size="100%"
-                  showDialBackground={false}
-                  hourPivotX={7.7}
-                  hourPivotY={50}
-                  minPivotX={4.8}
-                  minPivotY={50}
-                  smooth={false}
-                  manualHourDeg={currentHourAngle}
-                  manualMinDeg={currentMinAngle}
-                  centerCapSize="3.8%"
-                  centerCapOffsetX={1}
-                  centerCapOffsetY={0}
-                  className="w-full h-full"
-                />
-              </div>
+                              {/* Digits and labels row */}
+                              <div className="flex items-start justify-center gap-1.5 sm:gap-2 pt-0.5">
+                                {/* Days group */}
+                                <div className="flex flex-col items-center gap-1.5">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
+                                      {daysStr[0]}
+                                    </div>
+                                    <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
+                                      {daysStr[1]}
+                                    </div>
+                                  </div>
+                                  <span className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight font-sans mt-0.5">
+                                    days
+                                  </span>
+                                </div>
 
-              {/* Layer 3: Overlay SVG Clock Layer 2 */}
-              <div className="absolute inset-0 pointer-events-none z-3 flex justify-end items-end">
-                <NextImage
-                  src="/clock-layer2.svg"
-                  alt="Clock Graphic Layer 2"
-                  width={1440}
-                  height={810}
-                  className="w-full h-full object-contain object-right-bottom"
-                  priority
-                />
-              </div>
+                                {/* Colon */}
+                                <div className="h-12 sm:h-17 flex items-center justify-center text-xl sm:text-2xl font-bold text-slate-900 px-0.5">:</div>
 
-              {/* Layer 4: Khối bánh răng chính bên trái (Nằm đè lên trên cùng, bánh răng vẫn quay liên tục) */}
-              <div className="absolute bottom-[-76%] left-[61%] -translate-x-1/2 -translate-y-1/2 w-[33%] pointer-events-none rotate-[-10deg] z-4">
-                <ClockGears speed={12} className="w-full h-auto" />
-              </div>
+                                {/* Hours group */}
+                                <div className="flex flex-col items-center gap-1.5">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
+                                      {hoursStr[0]}
+                                    </div>
+                                    <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
+                                      {hoursStr[1]}
+                                    </div>
+                                  </div>
+                                  <span className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight font-sans mt-0.5">
+                                    hours
+                                  </span>
+                                </div>
 
-              {/* Layer 5: Đồng hồ 2 Kim xoay bên trái (Tự động nấc đến 10:00 rồi dừng hằn) */}
-              <div className="absolute top-[103.5%] left-[60%] -translate-x-1/2 -translate-y-1/2 w-[45%] aspect-square rotate-[-10] flex items-center justify-center pointer-events-auto hidden sm:flex z-5 rotate-96">
-                <GradientClock
-                  size="100%"
-                  showDialBackground={false}
-                  hourPivotX={7.7}
-                  hourPivotY={50}
-                  minPivotX={4.8}
-                  minPivotY={50}
-                  smooth={false}
-                  manualHourDeg={currentHourAngle}
-                  manualMinDeg={currentMinAngle}
-                  centerCapSize="3.8%"
-                  centerCapOffsetX={-1}
-                  centerCapOffsetY={-1}
-                  className="w-full h-full"
-                />
-              </div>
+                                {/* Colon */}
+                                <div className="h-12 sm:h-17 flex items-center justify-center text-xl sm:text-2xl font-bold text-slate-900 px-0.5">:</div>
 
-              {/* Layer 4: Số 10 (Trượt 09 -> 10) & 5 Ngôi sao xoay hiện ra theo Intro Animation */}
-              <svg
-                viewBox="0 0 1440 810"
-                className="absolute inset-0 w-full h-full pointer-events-none z-4 select-none"
-              >
-                <defs>
-                  {/* Gradient màu cho Số 10 */}
-                  <linearGradient id="num10Gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#0e0baeff" />
-                    <stop offset="20%" stopColor="#211cdb" />
-                    <stop offset="100%" stopColor="#38bdf8" />
-                  </linearGradient>
+                                {/* Minutes group */}
+                                <div className="flex flex-col items-center gap-1.5">
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
+                                      {minsStr[0]}
+                                    </div>
+                                    <div className="w-9 sm:w-13 aspect-[3/4] bg-[#f3f4f6] rounded-md border border-slate-200/40 flex items-center justify-center text-2xl sm:text-4xl font-medium text-slate-900 font-sans shadow-inner">
+                                      {minsStr[1]}
+                                    </div>
+                                  </div>
+                                  <span className="text-sm sm:text-base font-semibold text-slate-800 tracking-tight font-sans mt-0.5">
+                                    minutes
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
-                  {/* Gradient màu cho Ngôi sao Xanh (Trái sang Phải) */}
-                  <linearGradient id="starBlueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#0a086b" />
-                    <stop offset="20%" stopColor="#211cdb" />
-                    <stop offset="100%" stopColor="#38bdf8" />
-                  </linearGradient>
+                      {/* Layer 2: Bánh răng phụ 1 (Bên phải) */}
+                      <div className="absolute top-[80%] left-[93%] -translate-x-1/2 -translate-y-1/2 w-[30%] opacity-80 rotate-10 z-1">
+                        <ClockGears speed={5} reverse className="w-full h-auto" />
+                      </div>
 
-                  {/* Template Ngôi sao 10 cánh */}
-                  <g id="star10Shape">
-                    <polygon
-                      points="150,10 162.4,112.0 232.3,36.7 182.4,126.5 283.1,106.7 190,150 283.1,193.3 182.4,173.5 232.3,263.3 162.4,188.0 150,290 137.6,188.0 67.7,263.3 117.6,173.5 16.9,193.3 110,150 16.9,106.7 117.6,126.5 67.7,36.7 137.6,112.0"
-                      transform="translate(-150, -150)"
-                    />
-                  </g>
+                      {/* Layer 2: Bánh răng phụ 2 (Bên phải) */}
+                      <div className="absolute top-[73%] left-[95%] -translate-x-1/2 -translate-y-1/2 w-[25%] opacity-40 rotate-280 z-1">
+                        <ClockGears speed={10} className="w-full h-auto" />
+                      </div>
 
-                  {/* Khung cắt cho Dải cuộn số (ClipPath che phần dư phía trên & dưới) */}
-                  <clipPath id="numberReelWindow">
-                    <rect x="500" y="100" width="600" height="540" />
-                  </clipPath>
-                </defs>
+                      {/* Layer 2: Ngôi sao riêng biệt tại translate(1200, 405) (Tách riêng để nằm trên clock.svg nhưng nằm DƯỚI kim đồng hồ z-3) */}
+                      <svg
+                        viewBox="0 0 1440 810"
+                        className="absolute inset-0 w-full h-full pointer-events-none z-2 select-none"
+                      >
+                        <defs>
+                          <linearGradient id="starBlueGradIsolated" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#0a086b" />
+                            <stop offset="20%" stopColor="#211cdb" />
+                            <stop offset="100%" stopColor="#38bdf8" />
+                          </linearGradient>
+                          <g id="star10ShapeIsolated">
+                            <polygon
+                              points="150,10 162.4,112.0 232.3,36.7 182.4,126.5 283.1,106.7 190,150 283.1,193.3 182.4,173.5 232.3,263.3 162.4,188.0 150,290 137.6,188.0 67.7,263.3 117.6,173.5 16.9,193.3 110,150 16.9,106.7 117.6,126.5 67.7,36.7 137.6,112.0"
+                              transform="translate(-150, -150)"
+                            />
+                          </g>
+                        </defs>
+                        <g transform="translate(1200, 405) scale(0.45)">
+                          <use href="#star10ShapeIsolated" fill="url(#starBlueGradIsolated)" />
+                        </g>
+                      </svg>
 
-                {/* 
+                      {/* Layer 3: Đồng hồ 2 Kim xoay bên phải (Nằm ĐÈ LÊN ngôi sao z-2) */}
+                      <div className="absolute top-[78.5%] left-[93.5%] -translate-x-1/2 -translate-y-1/2 w-[47%] aspect-square flex items-center justify-center pointer-events-auto hidden sm:flex z-3 rotate-[-5]">
+                        <GradientClock
+                          size="100%"
+                          showDialBackground={false}
+                          hourPivotX={7.7}
+                          hourPivotY={50}
+                          minPivotX={4.8}
+                          minPivotY={50}
+                          smooth={false}
+                          manualHourDeg={currentHourAngle}
+                          manualMinDeg={currentMinAngle}
+                          centerCapSize="3.8%"
+                          centerCapOffsetX={1}
+                          centerCapOffsetY={0}
+                          className="w-full h-full"
+                        />
+                      </div>
+
+                      {/* Layer 3: Overlay SVG Clock Layer 2 */}
+                      <div className="absolute inset-0 pointer-events-none z-3 flex justify-end items-end">
+                        <NextImage
+                          src="/clock-layer2.svg"
+                          alt="Clock Graphic Layer 2"
+                          width={1440}
+                          height={810}
+                          className="w-full h-full object-contain object-right-bottom"
+                          priority
+                        />
+                      </div>
+
+                      {/* Layer 4: Khối bánh răng chính bên trái (Nằm đè lên trên cùng, bánh răng vẫn quay liên tục) */}
+                      <div className="absolute bottom-[-76%] left-[61%] -translate-x-1/2 -translate-y-1/2 w-[33%] pointer-events-none rotate-[-10deg] z-4">
+                        <ClockGears speed={12} className="w-full h-auto" />
+                      </div>
+
+                      {/* Layer 5: Đồng hồ 2 Kim xoay bên trái (Tự động nấc đến 10:00 rồi dừng hằn) */}
+                      <div className="absolute top-[103.5%] left-[60%] -translate-x-1/2 -translate-y-1/2 w-[45%] aspect-square rotate-[-10] flex items-center justify-center pointer-events-auto hidden sm:flex z-5 rotate-96">
+                        <GradientClock
+                          size="100%"
+                          showDialBackground={false}
+                          hourPivotX={7.7}
+                          hourPivotY={50}
+                          minPivotX={4.8}
+                          minPivotY={50}
+                          smooth={false}
+                          manualHourDeg={currentHourAngle}
+                          manualMinDeg={currentMinAngle}
+                          centerCapSize="3.8%"
+                          centerCapOffsetX={-1}
+                          centerCapOffsetY={-1}
+                          className="w-full h-full"
+                        />
+                      </div>
+
+                      {/* Layer 4: Số 10 (Trượt 09 -> 10) & 5 Ngôi sao xoay hiện ra theo Intro Animation */}
+                      <svg
+                        viewBox="0 0 1440 810"
+                        className="absolute inset-0 w-full h-full pointer-events-none z-4 select-none"
+                      >
+                        <defs>
+                          {/* Gradient màu cho Số 10 */}
+                          <linearGradient id="num10Gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#0e0baeff" />
+                            <stop offset="20%" stopColor="#211cdb" />
+                            <stop offset="100%" stopColor="#38bdf8" />
+                          </linearGradient>
+
+                          {/* Gradient màu cho Ngôi sao Xanh (Trái sang Phải) */}
+                          <linearGradient id="starBlueGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#0a086b" />
+                            <stop offset="20%" stopColor="#211cdb" />
+                            <stop offset="100%" stopColor="#38bdf8" />
+                          </linearGradient>
+
+                          {/* Template Ngôi sao 10 cánh */}
+                          <g id="star10Shape">
+                            <polygon
+                              points="150,10 162.4,112.0 232.3,36.7 182.4,126.5 283.1,106.7 190,150 283.1,193.3 182.4,173.5 232.3,263.3 162.4,188.0 150,290 137.6,188.0 67.7,263.3 117.6,173.5 16.9,193.3 110,150 16.9,106.7 117.6,126.5 67.7,36.7 137.6,112.0"
+                              transform="translate(-150, -150)"
+                            />
+                          </g>
+
+                          {/* Khung cắt cho Dải cuộn số (Mở rộng y từ 100 lên 0 để chữ không bị cắt mép phía trên) */}
+                          <clipPath id="numberReelWindow">
+                            <rect x="500" y="0" width="600" height="740" />
+                          </clipPath>
+                        </defs>
+
+                        {/* 
                   100% CONTINUOUS SVG STRIP REEL ANIMATION (SỐ 09 -> 10):
                   - Hàng chục (x=750): Dải cuộn dọc chứa [0, 9, 8, 7, 6, 5, 4, 3, 2, 1] trượt mượt 100% không khựng
                   - Hàng đơn vị (x=940): Dải cuộn dọc chứa [9, 0] trượt mượt xuống
                   - Điều khiển độ gia tốc qua đường cong NUMBERS_BEZIER_CURVE
                 */}
-                <g clipPath="url(#numberReelWindow)" fontFamily="Perandory" fontSize="480" fill="url(#num10Gradient)" dominantBaseline="central">
-                  {/* Hàng chục (x=730): Chờ Hàng đơn vị (số 9) trượt được TENS_SLIDE_START_RATIO rồi mới bứt tốc trượt về 1 */}
-                  <g transform={`translate(0, -${easedTensProgress * 9 * 360})`}>
-                    {[0, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((digit, idx) => {
-                      const yCurrent = (370 + idx * 360) - (easedTensProgress * 9 * 360);
-                      const dist = Math.abs(yCurrent - 370);
-                      const digitOpacity = Math.max(0, 1 - dist / REEL_FADE_DISTANCE);
+                        <g clipPath="url(#numberReelWindow)" fontFamily="Perandory" fontSize="480" fill="url(#num10Gradient)" dominantBaseline="central">
+                          {/* Hàng chục (x=730): Chờ Hàng đơn vị (số 9) trượt được TENS_SLIDE_START_RATIO rồi mới bứt tốc trượt về 1 */}
+                          <g transform={`translate(0, -${easedTensProgress * 9 * 360})`}>
+                            {[0, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((digit, idx) => {
+                              const yCurrent = (370 + idx * 360) - (easedTensProgress * 9 * 360);
+                              const dist = Math.abs(yCurrent - 370);
+                              const digitOpacity = Math.max(0, 1 - dist / REEL_FADE_DISTANCE);
 
-                      return (
-                        <text
-                          key={`tens-${idx}`}
-                          x="730"
-                          y={370 + idx * 360}
-                          opacity={digitOpacity}
-                          textAnchor="middle"
-                        >
-                          {digit}
-                        </text>
-                      );
-                    })}
-                  </g>
+                              return (
+                                <text
+                                  key={`tens-${idx}`}
+                                  x="730"
+                                  y={370 + idx * 360}
+                                  opacity={digitOpacity}
+                                  textAnchor="middle"
+                                >
+                                  {digit}
+                                </text>
+                              );
+                            })}
+                          </g>
 
-                  {/* Hàng đơn vị (x=940): Dải cuộn liên tục [9, 0] trượt ngay từ đầu */}
-                  <g transform={`translate(0, ${easedUnitsProgress * 360})`}>
-                    {(() => {
-                      const y9 = 370 + easedUnitsProgress * 360;
-                      const opacity9 = Math.max(0, 1 - Math.abs(y9 - 370) / REEL_FADE_DISTANCE);
+                          {/* Hàng đơn vị (x=940): Dải cuộn liên tục [9, 0] trượt ngay từ đầu */}
+                          <g transform={`translate(0, ${easedUnitsProgress * 360})`}>
+                            {(() => {
+                              const y9 = 370 + easedUnitsProgress * 360;
+                              const opacity9 = Math.max(0, 1 - Math.abs(y9 - 370) / REEL_FADE_DISTANCE);
 
-                      const y0 = (370 - 360) + easedUnitsProgress * 360;
-                      const opacity0 = Math.max(0, 1 - Math.abs(y0 - 370) / REEL_FADE_DISTANCE);
+                              const y0 = (370 - 360) + easedUnitsProgress * 360;
+                              const opacity0 = Math.max(0, 1 - Math.abs(y0 - 370) / REEL_FADE_DISTANCE);
 
-                      return (
-                        <>
-                          <text x="940" y={370} opacity={opacity9} textAnchor="middle">
-                            9
-                          </text>
-                          <text x="940" y={370 - 360} opacity={opacity0} textAnchor="middle">
-                            0
-                          </text>
-                        </>
-                      );
-                    })()}
-                  </g>
-                </g>
+                              return (
+                                <>
+                                  <text x="940" y={370} opacity={opacity9} textAnchor="middle">
+                                    9
+                                  </text>
+                                  <text x="940" y={370 - 360} opacity={opacity0} textAnchor="middle">
+                                    0
+                                  </text>
+                                </>
+                              );
+                            })()}
+                          </g>
+                        </g>
 
-                {/* 
+                        {/* 
                   ANIMATION 5 NGÔI SAO XUẤT HIỆN:
                   - Gia tốc xoay & hiện theo đường cong Cubic-Bezier (STAR_BEZIER_CURVE)
                   - Vận tốc xoay tùy chỉnh qua spinSpeed & turns trong mảng STAR_ANIM_CONFIG
                 */}
-                {STAR_ANIM_CONFIG.map((star) => {
-                  const activeDelay = star.delaySec;
-                  const ageSec = Math.max(0, introElapsedSec - activeDelay);
-                  const durationSec = Math.max(0.2, TOTAL_INTRO_DURATION_SEC - activeDelay);
-                  const starRawProgress = Math.min(1, ageSec / durationSec);
+                        {STAR_ANIM_CONFIG.map((star) => {
+                          const activeDelay = star.delaySec;
+                          const ageSec = Math.max(0, introElapsedSec - activeDelay);
+                          const durationSec = Math.max(0.2, TOTAL_INTRO_DURATION_SEC - activeDelay);
+                          const starRawProgress = Math.min(1, ageSec / durationSec);
 
-                  // Sử dụng đường cong Bezier riêng của ngôi sao hoặc đường cong STAR_BEZIER_CURVE mặc định
-                  const curve = star.bezierCurve ?? STAR_BEZIER_CURVE;
-                  const starEasedP = solveCubicBezier(curve[0], curve[1], curve[2], curve[3], starRawProgress);
+                          // Sử dụng đường cong Bezier riêng của ngôi sao hoặc đường cong STAR_BEZIER_CURVE mặc định
+                          const curve = star.bezierCurve ?? STAR_BEZIER_CURVE;
+                          const starEasedP = solveCubicBezier(curve[0], curve[1], curve[2], curve[3], starRawProgress);
 
-                  const starOpacity = starEasedP;
-                  const starScale = starEasedP * star.baseScale;
-                  const starRotation = (1 - starEasedP) * (star.turns * star.spinSpeed * 360) + star.endRotation;
+                          const starOpacity = starEasedP;
+                          const starScale = starEasedP * star.baseScale;
+                          const starRotation = (1 - starEasedP) * (star.turns * star.spinSpeed * 360) + star.endRotation;
 
-                  if (starOpacity <= 0) return null;
+                          if (starOpacity <= 0) return null;
 
-                  return (
-                    <g
-                      key={star.id}
-                      transform={`translate(${star.x}, ${star.y}) scale(${starScale}) rotate(${starRotation})`}
-                      opacity={starOpacity}
-                    >
-                      <use href="#star10Shape" fill={star.fill} />
-                    </g>
-                  );
-                })}
-              </svg>
-
-            </div>
-          </div>
-
-
-        </section>
-
-        {/* 2. TIMELINE SECTION (OVERLAPPING PINNED HERO WITH CURVED EDGES & DEPTH SHADOW) */}
-        <section
-          id="timeline"
-          ref={timelineRef}
-          className="relative z-20 bg-[#050508]/95 backdrop-blur-2xl rounded-t-[40px] md:rounded-t-[60px] lg:rounded-t-[80px] border-t border-white/10 shadow-[0_-50px_100px_rgba(0,0,0,0.95)] py-24 w-full overflow-hidden border-b border-white/[0.03]"
-        >
-          {/* Glow Accent Line & Cosmic Background Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-950/20 via-purple-950/10 to-transparent pointer-events-none z-0" />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none z-10" />
-
-          <div className="max-w-7xl mx-auto px-6 md:px-12 relative z-10">
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-6 mb-12">
-              <div className="space-y-2">
-                <span className="text-xs font-semibold tracking-[0.25em] text-blue-400/95 uppercase block">
-                  CHẶNG ĐƯỜNG PHÁT TRIỂN
-                </span>
-                <h2 className="text-3xl md:text-4xl font-serif font-light text-white">Hành Trình 1 Thập Kỷ</h2>
-              </div>
-
-              {/* Year selector pills */}
-              <div className="flex flex-wrap gap-2 bg-white/[0.02] p-1.5 rounded-xl border border-white/[0.05] max-w-full">
-                {timelineData.map((ev) => (
-                  <button
-                    key={ev.year}
-                    onClick={() => setSelectedYear(ev.year)}
-                    className={`px-4 py-1.5 rounded-lg font-mono text-xs tracking-wider transition-all ${selectedYear === ev.year
-                      ? 'bg-blue-600 text-white font-semibold shadow-md'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`}
-                  >
-                    {ev.year}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Timeline Event Details Card */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 bg-white/[0.01] p-6 md:p-10 rounded-2xl border border-white/[0.03] backdrop-blur-sm shadow-2xl shadow-blue-950/10">
-
-              {/* Left panel: Info */}
-              <div className="lg:col-span-5 space-y-6">
-                <div className="space-y-2">
-                  <span className="font-mono text-5xl font-extralight text-blue-500/40">{currentEvent.year}</span>
-                  <h3 className="text-2xl font-serif text-white">{currentEvent.title}</h3>
-                  <p className="text-xs font-medium text-slate-400 tracking-wide italic">"{currentEvent.tagline}"</p>
-                </div>
-
-                <p className="text-slate-400 text-sm leading-relaxed font-light">{currentEvent.description}</p>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/[0.04]">
-                  {currentEvent.stats.map((st, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <span className="text-[9px] uppercase font-mono tracking-widest text-slate-500 font-bold">{st.label}</span>
-                      <p className="text-sm text-white font-semibold">{st.value}</p>
+                          return (
+                            <g
+                              key={star.id}
+                              transform={`translate(${star.x}, ${star.y}) scale(${starScale}) rotate(${starRotation})`}
+                              opacity={starOpacity}
+                            >
+                              <use href="#star10Shape" fill={star.fill} />
+                            </g>
+                          );
+                        })}
+                      </svg>
                     </div>
-                  ))}
-                </div>
-
-                {/* Highlights */}
-                <div className="space-y-2 pt-2">
-                  <span className="text-[9px] uppercase font-mono tracking-widest text-slate-500 font-bold block">Dấu ấn nổi bật:</span>
-                  <ul className="space-y-1.5 text-xs text-slate-400 font-light">
-                    {currentEvent.highlights.map((hl, idx) => (
-                      <li key={idx} className="flex items-center gap-2">
-                        <span className="w-1 h-1 bg-blue-400 rounded-full"></span>
-                        {hl}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Right panel: Images & Comments */}
-              <div className="lg:col-span-7 flex flex-col gap-6">
-                {/* Featured Image */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {currentEvent.images.map((img) => (
-                    <div
-                      key={img.id}
-                      onClick={() => setLightboxUrl(img.url)}
-                      className="group relative h-64 rounded-xl overflow-hidden border border-white/[0.05] bg-slate-950 cursor-zoom-in"
-                    >
-                      <img
-                        src={img.url}
-                        alt={img.caption}
-                        className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                        <p className="text-xs font-light text-slate-200 leading-snug">{img.caption}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Comments for the year */}
-                <div className="mt-4 border-t border-white/[0.05] pt-6">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4 text-blue-400" />
-                    Kỷ ức năm {currentEvent.year} của bạn
-                  </h4>
-
-                  {/* Comments list */}
-                  <div className="space-y-3 mb-4 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                    {commentsForYear.length === 0 ? (
-                      <p className="text-xs text-slate-500 font-light italic">Chưa có kỷ niệm nào được chia sẻ.</p>
-                    ) : (
-                      commentsForYear.map((cmt) => (
-                        <div key={cmt.id} className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-lg space-y-2">
-                          <div className="flex justify-between items-center text-[10px]">
-                            <span className="font-semibold text-blue-400">{cmt.name}</span>
-                            <span className="text-slate-500">{cmt.date}</span>
-                          </div>
-                          <p className="text-xs text-slate-300 leading-relaxed font-light">{cmt.content}</p>
-                          {cmt.imageUrl && (
-                            <img
-                              src={cmt.imageUrl}
-                              alt="Comment attachment"
-                              onClick={() => setLightboxUrl(cmt.imageUrl!)}
-                              className="h-20 w-auto rounded border border-white/[0.06] mt-1.5 cursor-zoom-in hover:brightness-110"
-                            />
-                          )}
-                        </div>
-                      ))
-                    )}
                   </div>
-
-                  {/* Form and Upload image */}
-                  <form onSubmit={handleAddTimelineComment} className="flex flex-col gap-2.5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Tên của bạn..."
-                        value={commentName}
-                        onChange={(e) => setCommentName(e.target.value)}
-                        className="bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500/50 text-white"
-                      />
-                      <div className="flex gap-2">
-                        <label className="flex-1 px-3 py-2 rounded-lg border border-white/10 text-[10px] text-slate-400 bg-white/[0.02] hover:bg-white/[0.05] transition-colors cursor-pointer flex items-center justify-center gap-2">
-                          <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
-                          <span>{commentImage ? "Đã chọn ảnh" : "Đăng kèm ảnh"}</span>
-                          <input type="file" accept="image/*" className="hidden" onChange={handleCommentImageUpload} />
-                        </label>
-                        {commentImage && (
-                          <button
-                            type="button"
-                            onClick={() => setCommentImage(null)}
-                            className="p-2 text-red-400 bg-red-950/20 border border-red-900/30 rounded-lg hover:bg-red-900/30"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        required
-                        placeholder="Chia sẻ ký ức của bạn..."
-                        value={commentContent}
-                        onChange={(e) => setCommentContent(e.target.value)}
-                        className="flex-1 bg-white/[0.02] border border-white/10 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-blue-500/50 text-white"
-                      />
-                      <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold uppercase tracking-wider transition-colors">
-                        Gửi
-                      </button>
-                    </div>
-                  </form>
                 </div>
-
-              </div>
-            </div>
+              </section>
           </div>
-        </section>
+        </div>
       </div>
 
-      {/* 3. GALLERY SECTION (ID: gallery) */}
-      <section id="gallery" className="py-24 max-w-7xl mx-auto px-6 md:px-12 w-full border-b border-white/[0.03] relative z-10">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-12">
-          <div className="space-y-2">
-            <span className="text-xs font-semibold tracking-[0.25em] text-blue-400/95 uppercase block">
-              ẢNH KỈ NIỆM ĐÊM TIỆC
-            </span>
-            <h2 className="text-3xl md:text-4xl font-serif font-light text-white">Khoảnh Khắc Đêm Tiệc</h2>
-          </div>
+      {/* 2. TIMELINE SECTION (OVERLAPPING PINNED HERO WITH CURVED EDGES & DEPTH SHADOW) */}
+      <section
+        id="timeline"
+        ref={timelineRef}
+        className="relative w-full z-20 bg-[#0a0a0c]/98 transform-gpu rounded-t-2xl md:rounded-t-3xl border-t border-white/10 shadow-[0_-50px_100px_rgba(0,0,0,0.95)] pt-8 md:pt-12 pb-4 overflow-hidden border-b border-white/[0.03]"
+        style={{ willChange: 'transform', marginBottom: '-320px' }}
+      >
+        {/* Glow Accent Line & Cosmic Background Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-b from-blue-950/20 via-purple-950/10 to-transparent pointer-events-none z-0" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent pointer-events-none z-10" />
 
-          <label className="px-5 py-2.5 rounded-full border border-white/10 text-xs font-medium uppercase tracking-wider text-slate-300 bg-white/[0.02] hover:bg-white hover:text-black hover:border-white transition-all flex items-center gap-2 cursor-pointer">
-            <Upload className="w-3.5 h-3.5" />
-            <span>Đăng ảnh của bạn</span>
-            <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
-          </label>
-        </div>
+        <div className="w-[90%] lg:w-[80%] mx-auto relative z-10 space-y-10">
+          {/* INTERACTIVE MARQUEE PHOTO GALLERY WITH LEFT DETAIL PANEL */}
+          <MarqueePhotoGallery externalRows={marqueeRows} />
 
-        {/* Photos grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {recapImages.length === 0 ? (
-            <div className="col-span-full text-center py-16 border border-dashed border-white/10 rounded-2xl text-slate-500 text-xs tracking-widest font-mono">
-              CHƯA CÓ ẢNH NÀO ĐƯỢC ĐĂNG. HÃY LÀ NGƯỜI ĐẦU TIÊN!
-            </div>
-          ) : (
-            recapImages.map((img) => (
-              <div
-                key={img.id}
-                className="group bg-white/[0.01] border border-white/[0.04] rounded-2xl overflow-hidden shadow-xl hover:-translate-y-1 transition-all duration-300 relative"
-              >
-                {/* Delete button (hover only) */}
-                <button
-                  onClick={(e) => deleteRecapImage(img.id, e)}
-                  className="absolute top-3 right-3 z-20 p-2 rounded-full bg-black/60 text-slate-400 hover:text-red-400 backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all border border-white/5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-
-                {/* Photo canvas */}
-                <div className="h-64 overflow-hidden relative cursor-zoom-in" onClick={() => setLightboxUrl(img.url)}>
-                  <img src={img.url} alt={img.caption} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                  <span className="absolute bottom-3 left-3 bg-black/50 text-[9px] font-mono px-2 py-0.5 rounded text-slate-300 backdrop-blur-sm">{img.time}</span>
-                </div>
-
-                {/* Bottom details */}
-                <div className="p-4 space-y-3">
-                  <p className="text-xs text-slate-400 font-light min-h-[32px] line-clamp-2 leading-relaxed">{img.caption}</p>
-                  <div className="flex justify-between items-center pt-2 border-t border-white/[0.04]">
-                    <button
-                      onClick={(e) => handleLikeRecap(img.id, e)}
-                      className="flex items-center gap-1.5 text-[11px] text-slate-400 hover:text-red-400 transition-colors group/btn"
-                    >
-                      <Heart className="w-3.5 h-3.5 group-hover/btn:fill-red-500" />
-                      <span>{img.likes} Yêu thích</span>
-                    </button>
-                  </div>
-                </div>
+          {/* 3. GALLERY SECTION (ID: gallery - KHOẢNH KHẮC ĐÊM TIỆC) */}
+          <div id="gallery" className="pt-8 border-t border-white/[0.06] relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 mb-6">
+              <div className="space-y-2">
+                <span className="text-xs font-semibold tracking-[0.25em] text-blue-400/95 uppercase block">
+                  ẢNH KỈ NIỆM ĐÊM TIỆC
+                </span>
+                <h2 className="text-3xl md:text-4xl font-serif font-light text-white">Khoảnh Khắc Đêm Tiệc</h2>
               </div>
-            ))
-          )}
+            </div>
+
+            {/* Embedded Interactive WebGL Party Canvas */}
+            <PartyCanvas className="w-full min-h-[500px] bg-black text-slate-100 flex flex-col overflow-hidden font-sans border border-dashed border-white/10 rounded-2xl relative transition-all duration-300" />
+          </div>
         </div>
+
+        {/* FOOTER */}
+        <footer className="mt-12 py-6 border-t border-white/[0.04] bg-zinc-950/40 relative z-10">
+          <div className="w-[90%] lg:w-[80%] mx-auto text-center space-y-3">
+            <div className="flex justify-center items-center gap-2">
+              <Camera className="w-4 h-4 text-blue-500" />
+              <span className="font-serif text-sm tracking-[0.2em] font-light">ILLUSTRIS</span>
+            </div>
+            <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+              A DECADE OF LIGHT — A JOURNEY OF MOMENTS
+            </p>
+            <div className="font-serif italic text-3xl text-slate-800 tracking-wider">
+              fin<span className="text-blue-500">.</span>
+            </div>
+          </div>
+        </footer>
       </section>
-
-      {/* 4. GUESTBOOK SECTION (ID: wish) */}
-      <section id="wish" className="py-24 max-w-7xl mx-auto px-6 md:px-12 w-full border-b border-white/[0.03] relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-
-          {/* Left panel: Form */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="space-y-2">
-              <span className="text-xs font-semibold tracking-[0.25em] text-blue-400/95 uppercase block">
-                GUESTBOOK
-              </span>
-              <h2 className="text-3xl font-serif font-light text-white">Gửi Lời Chúc Mừng</h2>
-              <p className="text-xs text-slate-400 font-light leading-relaxed">
-                Lưu giữ những lời chúc, cảm xúc hoặc kỷ niệm đáng nhớ của bạn với đại gia đình Illustris tại đây.
-              </p>
-            </div>
-
-            <form onSubmit={handleAddWish} className="space-y-4 bg-white/[0.01] border border-white/[0.03] p-5 rounded-2xl backdrop-blur-sm shadow-xl">
-              <div className="space-y-1">
-                <label className="text-[9px] font-mono uppercase tracking-wider text-slate-500 font-bold block">Họ và tên</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Họ và tên của bạn..."
-                  value={newWishName}
-                  onChange={(e) => setNewWishName(e.target.value)}
-                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-blue-500/50 text-white transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-mono uppercase tracking-wider text-slate-500 font-bold block">Vai trò / Chức vụ</label>
-                <input
-                  type="text"
-                  placeholder="Cựu thành viên Gen 3, Khách mời..."
-                  value={newWishRole}
-                  onChange={(e) => setNewWishRole(e.target.value)}
-                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-blue-500/50 text-white transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[9px] font-mono uppercase tracking-wider text-slate-500 font-bold block">Lời chúc</label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Chúc mừng kỷ niệm 10 năm Illustris..."
-                  value={newWishContent}
-                  onChange={(e) => setNewWishContent(e.target.value)}
-                  className="w-full bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-blue-500/50 text-white transition-colors resize-none"
-                />
-              </div>
-
-              <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-semibold uppercase tracking-wider transition-colors shadow-lg shadow-blue-500/10">
-                Gửi Lời Chúc
-              </button>
-            </form>
-          </div>
-
-          {/* Right panel: Wish cards scroll grid */}
-          <div className="lg:col-span-7">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-              {wishes.length === 0 ? (
-                <div className="col-span-full h-48 flex items-center justify-center text-slate-500 text-xs tracking-wider border border-dashed border-white/10 rounded-2xl font-mono">
-                  CHƯA CÓ LỜI CHÚC NÀO.
-                </div>
-              ) : (
-                wishes.map((wish) => (
-                  <div key={wish.id} className="bg-white/[0.01] border border-white/[0.04] p-5 rounded-xl space-y-4 hover:bg-white/[0.03] transition-colors h-fit shadow-md">
-                    <p className="text-xs font-light text-slate-300 leading-relaxed italic">"{wish.content}"</p>
-                    <div className="pt-3 border-t border-white/[0.04] flex justify-between items-end">
-                      <div>
-                        <p className="text-xs font-semibold text-blue-400">{wish.name}</p>
-                        <p className="text-[9px] text-slate-500 uppercase tracking-widest mt-0.5">{wish.role}</p>
-                      </div>
-                      <span className="text-[9px] text-slate-600">{wish.date}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="py-12 border-t border-white/[0.02] bg-zinc-950/40 relative z-10">
-        <div className="max-w-7xl mx-auto px-6 text-center space-y-4">
-          <div className="flex justify-center items-center gap-2">
-            <Camera className="w-4 h-4 text-blue-500" />
-            <span className="font-serif text-sm tracking-[0.2em] font-light">ILLUSTRIS</span>
-          </div>
-          <p className="text-[10px] text-slate-500 uppercase tracking-widest">
-            A DECADE OF LIGHT — A JOURNEY OF MOMENTS
-          </p>
-          <div className="font-serif italic text-4xl text-slate-800 tracking-wider">
-            fin<span className="text-blue-500">.</span>
-          </div>
-        </div>
-      </footer>
 
       {/* LIGHTBOX FOR IMAGES */}
       {lightboxUrl && (
@@ -1671,6 +1367,24 @@ export default function App() {
           <img src={lightboxUrl} alt="Zoomed view" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
         </div>
       )}
+
+      {/* LIBRARY ADMIN TRIGGER — hidden button bottom-right (hover to reveal) */}
+      <button
+        id="library-admin-trigger"
+        onClick={() => setIsAdminOpen(true)}
+        title="Mở Library Editor"
+        className="fixed bottom-6 right-6 z-[90] p-2.5 rounded-full bg-black/60 border border-white/10 text-slate-600 hover:text-white hover:bg-blue-600 hover:border-blue-500 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 opacity-30 hover:opacity-100 backdrop-blur-sm"
+      >
+        <Settings className="w-4 h-4" />
+      </button>
+
+      {/* MARQUEE LIBRARY ADMIN PANEL */}
+      <MarqueeAdminPanel
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        rows={marqueeRows}
+        onRowsChange={fetchMarqueeData}
+      />
 
       {/* Custom Scrollbar Styles */}
       <style dangerouslySetInnerHTML={{

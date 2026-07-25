@@ -6,9 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:conn": "node scripts/test-connection.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1094.0",
+    "@libsql/client": "^0.17.4",
+    "framer": "^3.0.4",
     "framer-motion": "^12.42.2",
     "gsap": "^3.15.0",
     "lucide-react": "^1.25.0",

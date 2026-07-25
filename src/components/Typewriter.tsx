@@ -12,7 +12,7 @@ const RenderTarget = {
 }
 import { motion, type AnimationOptions, type Variants } from "framer-motion"
 
-export default function Typewriter(props: Props) {
+function Typewriter(props: Props) {
     const fullProps: Required<Props> = { ...COMPONENT_DEFAULTS, ...props } as any;
     const {
         texts,
@@ -188,6 +188,8 @@ export default function Typewriter(props: Props) {
         </div>
     )
 }
+
+export default React.memo(Typewriter);
 
 export type Props = {
     texts?: string[]

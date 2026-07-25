@@ -44,7 +44,7 @@ export interface GradientClockProps {
   style?: React.CSSProperties;
 }
 
-export default function GradientClock({
+function GradientClock({
   className = '',
   size = 350,
   
@@ -272,3 +272,5 @@ export default function GradientClock({
     </div>
   );
 }
+
+export default React.memo(GradientClock);

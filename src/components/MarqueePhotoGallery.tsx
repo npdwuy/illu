@@ -524,25 +524,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
           </div>
         </div>
 
-        {/* Active Year Theme Text (Ultra Compact & Minimalist Typography, No Box, No Border Line) */}
-        {(() => {
-          const activeYearObj = TIMELINE_YEARS.find((y) => y.year === selectedYear) || TIMELINE_YEARS[0];
-          return (
-            <div className="mt-1.5 pt-1 flex items-center gap-2 text-[13.5px] font-mono text-slate-300">
-              <div className="flex items-center gap-2 border-l border-blue-500 pl-2 shrink-0">
-                <span className="text-blue-400 font-bold">
-                  {activeYearObj.year === 'all' ? '2016 – 2026' : activeYearObj.year}
-                </span>
-                <span className="text-white font-serif font-semibold truncate">
-                  {activeYearObj.title}
-                </span>
-              </div>
-              <span className="text-slate-400 italic truncate sm:ml-1">
-                — {activeYearObj.tagline}
-              </span>
-            </div>
-          );
-        })()}
+
       </div>
 
       {/* DYNAMIC REFLOW CONTAINER (Left Panel + Right Gallery) */}

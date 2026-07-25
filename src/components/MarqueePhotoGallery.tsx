@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
 import { MARQUEE_ROWS, MarqueeImage } from "@/data/marqueeGalleryData";
 import {
   X,
@@ -242,10 +243,12 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
               className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300"
               style={{ aspectRatio: item.aspectRatio || "4/3" }}
             >
-              <img
+              <Image
                 src={item.url}
                 alt={item.title}
-                className="w-full h-full object-cover pointer-events-none"
+                fill
+                sizes="(max-width: 768px) 30vw, 350px"
+                className="object-cover pointer-events-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 pointer-events-none">
                 <span className="self-end bg-black/80 px-2 py-0.5 border border-slate-800 font-mono text-[13.5px] text-blue-400 mb-2">
@@ -276,10 +279,12 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
               className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300"
               style={{ aspectRatio: item.aspectRatio || "4/3" }}
             >
-              <img
+              <Image
                 src={item.url}
                 alt={item.title}
-                className="w-full h-full object-cover pointer-events-none"
+                fill
+                sizes="(max-width: 768px) 30vw, 350px"
+                className="object-cover pointer-events-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 pointer-events-none">
                 <span className="self-end bg-black/80 px-2 py-0.5 border border-slate-800 font-mono text-[13.5px] text-blue-400 mb-2">
@@ -310,10 +315,12 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
               className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300"
               style={{ aspectRatio: item.aspectRatio || "4/3" }}
             >
-              <img
+              <Image
                 src={item.url}
                 alt={item.title}
-                className="w-full h-full object-cover pointer-events-none"
+                fill
+                sizes="(max-width: 768px) 30vw, 350px"
+                className="object-cover pointer-events-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 pointer-events-none">
                 <span className="self-end bg-black/80 px-2 py-0.5 border border-slate-800 font-mono text-[13.5px] text-blue-400 mb-2">
@@ -373,6 +380,20 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
 
   // Use server-provided rows strictly as the single source of truth
   const sourceRows: MarqueeImage[][] = externalRows || [];
+
+  // Preload all marquee detail images in background after mount
+  useEffect(() => {
+    if (!sourceRows || sourceRows.length === 0) return;
+    const timer = setTimeout(() => {
+      sourceRows.flat().forEach((item) => {
+        if (item && item.url) {
+          const img = new window.Image();
+          img.src = item.url;
+        }
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [sourceRows]);
 
   const handleTimelinePointerDown = (e: React.PointerEvent) => {
     if (!timelineNavRef.current) return;
@@ -539,7 +560,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
       >
 
         {/* ================= LEFT DETAIL PANEL (Dynamic Smooth Scaling 0.25 to 0.45 Width) ================= */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {selectedImage && (
             <motion.aside
               key="detail-panel-container"
@@ -550,8 +571,8 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
               }}
               exit={{ width: 0, opacity: 0 }}
               transition={{
-                width: { duration: isResizingRef.current ? 0 : 0.45, ease: [0.16, 1, 0.3, 1] },
-                opacity: { duration: 0.25 }
+                width: { duration: isResizingRef.current ? 0 : 0.2, ease: "easeOut" },
+                opacity: { duration: 0.15 }
               }}
               className="shrink-0 border-r border-slate-800 bg-slate-950 flex flex-col justify-between relative overflow-hidden z-30 shadow-2xl min-w-0 h-full max-h-full"
             >
@@ -584,27 +605,33 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                 {/* Inner Animated Contents when switching between images (Top to Bottom Layout) */}
                 <motion.div
                   key={selectedImage.id}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.1, ease: "easeOut" }}
                   className="flex-1 min-h-0 flex flex-col justify-start items-start gap-2.5"
                 >
                   {/* High Resolution Image Preview (Aligned top, fit image size with aspect-ratio) */}
                   <div
-                    className="relative w-full overflow-hidden border border-slate-800/80 bg-slate-950/90 rounded-lg group shadow-xl transition-[aspect-ratio] duration-300 max-h-[380px] sm:max-h-[420px] shrink-0"
+                    className="relative w-full overflow-hidden border border-slate-800/80 bg-slate-950/90 rounded-lg group shadow-xl transition-[aspect-ratio] duration-300 max-h-[395px] sm:max-h-[435px] shrink-0"
                     style={{ aspectRatio: (selectedImage.aspectRatio || "16/9").replace('/', ' / ') }}
                   >
                     {/* Ambient Blur Backdrop */}
-                    <img
+                    <Image
                       src={selectedImage.url}
                       alt=""
-                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 pointer-events-none select-none"
+                      fill
+                      unoptimized
+                      priority
+                      className="object-cover blur-2xl opacity-30 scale-110 pointer-events-none select-none"
                     />
                     {/* Foreground Image */}
-                    <img
+                    <Image
                       src={selectedImage.url}
                       alt={selectedImage.title}
-                      className="relative z-10 w-full h-full object-cover rounded-lg drop-shadow-xl block"
+                      fill
+                      unoptimized
+                      priority
+                      className="object-cover rounded-lg drop-shadow-xl block z-10"
                     />
                   </div>
 

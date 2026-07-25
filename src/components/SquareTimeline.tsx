@@ -40,6 +40,25 @@ export default function SquareTimeline() {
     return () => clearInterval(timer);
   }, [selectedItem, isPlaying]);
 
+  // Preload all album slideshow images in background after mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      TIMELINE_ITEMS.forEach((item) => {
+        if (item.imageUrl) {
+          const img = new window.Image();
+          img.src = item.imageUrl;
+        }
+        if (item.images && item.images.length) {
+          item.images.forEach((src) => {
+            const img = new window.Image();
+            img.src = src;
+          });
+        }
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Row 1: 4 items (Index 0, 1, 2, 3) -> 2016, 2017, 2018, 2019
   const row1Items = TIMELINE_ITEMS.slice(0, 4);
   // Row 2: 3 items (Index 4, 5, 6) -> 2020, 2021, 2022
@@ -52,7 +71,7 @@ export default function SquareTimeline() {
   // 3 rows × 159px + 2 spacers × 20px = 477 + 40 = 517px
   const PANEL_H = 517;
   const PANEL_PADDING = 20; // p-5 = 20px each side, 40px total
-  const SLIDESHOW_H = 240; // fixed slideshow height; remaining space fills info section via flex
+  const SLIDESHOW_H = 255; // fixed slideshow height; remaining space fills info section via flex
 
   return (
     <div className="w-full max-w-[1280px] mx-auto p-4 md:p-8 font-sans text-slate-100 select-none">
@@ -114,14 +133,14 @@ export default function SquareTimeline() {
       {/* Total image rows height: 3×155px + 2×20px gap + borders ≈ 515px */}
       <div className="relative flex flex-col lg:flex-row gap-6" style={{ minHeight: PANEL_H }}>
         {/* LEFT SIDE PREVIEW PANEL (CHỈ HIỂN THỊ KHI ĐÃ CHỌN Ô TIMELINE, CHẠY SLIDESHOW ALBUM MƯỢT MÀ) */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           {selectedItem && (
             <motion.div
               key={selectedItem.id}
-              initial={{ opacity: 0, width: 0, x: -30 }}
+              initial={{ opacity: 0, width: 0, x: -15 }}
               animate={{ opacity: 1, width: "100%", x: 0 }}
-              exit={{ opacity: 0, width: 0, x: -30 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+              exit={{ opacity: 0, width: 0, x: -15 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="lg:w-[440px] shrink-0 bg-slate-900 border border-amber-500/50 shadow-2xl flex flex-col relative"
               style={{
                 height: PANEL_H,
@@ -156,7 +175,7 @@ export default function SquareTimeline() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 0.35 }}
                       exit={{ opacity: 0 }}
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: 0.2 }}
                       className="absolute inset-0 w-full h-full"
                       style={{ filter: "blur(24px)", transform: "scale(1.15)" }}
                     >
@@ -164,8 +183,9 @@ export default function SquareTimeline() {
                         src={selectedItem.images[currentImageIndex]}
                         alt=""
                         fill
-                        className="object-cover"
+                        unoptimized
                         priority
+                        className="object-cover"
                       />
                     </motion.div>
                   </AnimatePresence>
@@ -176,7 +196,7 @@ export default function SquareTimeline() {
                   className="relative z-10 flex w-full h-full"
                   style={{
                     transform: `translateX(-${currentImageIndex * 100}%)`,
-                    transition: "transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
+                    transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                     willChange: "transform",
                   }}
                 >
@@ -186,9 +206,9 @@ export default function SquareTimeline() {
                         src={src}
                         alt={`${selectedItem.title} - photo ${idx + 1}`}
                         fill
-                        sizes="(max-width: 768px) 100vw, 440px"
-                        className="object-contain drop-shadow-xl"
+                        unoptimized
                         priority={idx === 0}
+                        className="object-contain drop-shadow-xl"
                       />
                     </div>
                   ))}

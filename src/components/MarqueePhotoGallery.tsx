@@ -209,7 +209,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
 
   if (rowItems.length === 0) {
     return (
-      <div className="relative w-full h-[22vh] min-h-[160px] bg-slate-950/20 border border-dashed border-white/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
+      <div className="relative w-full h-[calc(22vh+15px)] min-h-[175px] bg-slate-950/20 border border-dashed border-white/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
         <p className="text-xs text-slate-500 font-mono">Hàng trống (Row {isEven ? 'chẵn' : 'lẻ'})</p>
         <p className="text-[10px] text-slate-600 font-mono mt-1">Sử dụng Library Editor ở góc phải để tải ảnh lên hàng này</p>
       </div>
@@ -217,7 +217,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
   }
 
   return (
-    <div className="relative w-full overflow-hidden h-[22vh] min-h-[160px] bg-slate-950/40">
+    <div className="relative w-full overflow-hidden h-[calc(22vh+15px)] min-h-[175px] bg-slate-950/40">
       <div
         ref={trackRef}
         className="flex gap-2 items-center h-full w-max cursor-grab active:cursor-grabbing select-none"
@@ -564,7 +564,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
               </div>
 
               {/* Panel Inside Content Container (padded away from splitter bar on right) */}
-              <div className="p-3.5 pr-5 pb-3 flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+              <div className="p-3.5 pr-5 pb-3 h-full flex-1 flex flex-col justify-between overflow-hidden">
                 {/* Top Bar: Minimalist Close Button */}
                 <div className="flex items-center justify-end pb-1 border-b border-slate-800/80 shrink-0">
                   <button
@@ -582,12 +582,12 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="flex-1 flex flex-col justify-between my-2"
+                  className="flex-1 min-h-0 flex flex-col justify-between my-2 gap-3"
                 >
-                  <div>
-                    {/* High Resolution Image Preview (Fit sát cạnh w-full khi kéo ra/vào + Giữ tỉ lệ gốc + Ambient Blur) */}
+                  {/* High Resolution Image Preview (Khung chứa ảnh vừa khít 100% kích thước ảnh: container size = image size) */}
+                  <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden my-1">
                     <div
-                      className="relative w-full overflow-hidden border border-slate-800/80 mb-4 bg-slate-950/90 rounded-lg flex items-center justify-center group shadow-xl max-h-[460px] transition-[aspect-ratio] duration-300"
+                      className="relative max-w-full max-h-full overflow-hidden border border-slate-800/80 bg-slate-950/90 rounded-lg group shadow-xl flex items-center justify-center transition-[aspect-ratio] duration-300"
                       style={{ aspectRatio: (selectedImage.aspectRatio || "16/9").replace('/', ' / ') }}
                     >
                       {/* Ambient Blur Backdrop */}
@@ -596,20 +596,23 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                         alt=""
                         className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 pointer-events-none select-none"
                       />
-                      {/* Foreground Image Fit Edge (w-full h-full object-cover matching aspect ratio) */}
+                      {/* Foreground Image */}
                       <img
                         src={selectedImage.url}
                         alt={selectedImage.title}
-                        className="relative z-10 w-full h-full object-cover rounded-lg drop-shadow-xl"
+                        className="relative z-10 w-full h-full object-cover rounded-lg drop-shadow-xl block"
                       />
                     </div>
+                  </div>
 
-                    <h3 className="text-xl font-serif text-white font-bold mb-1">
+                  {/* Metadata Footer Section */}
+                  <div className="shrink-0 space-y-2">
+                    <h3 className="text-lg md:text-xl font-serif text-white font-bold leading-snug truncate">
                       {selectedImage.title}
                     </h3>
 
                     {/* Date, Location & Category */}
-                    <div className="flex flex-wrap items-center gap-3 text-[13.5px] font-mono text-slate-400 mb-3 pb-2 border-b border-slate-800/60">
+                    <div className="flex flex-wrap items-center gap-2.5 text-[12.5px] font-mono text-slate-400 pb-1.5 border-b border-slate-800/60">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-blue-400" />
                         <span>{selectedImage.date}</span>
@@ -623,13 +626,13 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                       <span className="text-blue-400 font-semibold">• {selectedImage.category}</span>
                     </div>
 
-                    {/* Raw Minimalist Description */}
-                    <p className="text-[15px] text-slate-300 leading-relaxed font-sans mb-4">
+                    {/* Raw Minimalist Description (Hiển thị đầy đủ 100% mô tả) */}
+                    <p className="text-[13.5px] text-slate-300 leading-relaxed font-sans max-h-[120px] overflow-y-auto custom-scrollbar pr-1">
                       {selectedImage.description}
                     </p>
 
                     {/* Raw Minimalist Tags */}
-                    <div className="flex flex-wrap gap-2 text-[13.5px] font-mono text-slate-400">
+                    <div className="flex flex-wrap gap-1.5 text-[12px] font-mono text-slate-400">
                       {selectedImage.tags.map((tag, idx) => (
                         <span key={idx} className="hover:text-blue-400 transition-colors">
                           #{tag}

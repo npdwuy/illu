@@ -564,9 +564,9 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
               </div>
 
               {/* Panel Inside Content Container (padded away from splitter bar on right) */}
-              <div className="p-3.5 pr-5 pb-3 h-full flex-1 flex flex-col justify-between overflow-hidden">
+              <div className="p-3.5 pr-5 pb-3 h-full flex-1 flex flex-col justify-start overflow-y-auto custom-scrollbar">
                 {/* Top Bar: Minimalist Close Button */}
-                <div className="flex items-center justify-end pb-1 border-b border-slate-800/80 shrink-0">
+                <div className="flex items-center justify-end pb-1 border-b border-slate-800/80 shrink-0 mb-3">
                   <button
                     onClick={() => setSelectedImageState(null)}
                     className="text-slate-400 hover:text-white transition-colors cursor-pointer p-0.5"
@@ -576,43 +576,41 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                   </button>
                 </div>
 
-                {/* Inner Animated Contents when switching between images */}
+                {/* Inner Animated Contents when switching between images (Top to Bottom Layout) */}
                 <motion.div
                   key={selectedImage.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, ease: "easeOut" }}
-                  className="flex-1 min-h-0 flex flex-col justify-between my-2 gap-3"
+                  className="flex-1 flex flex-col justify-start items-start gap-3.5"
                 >
-                  {/* High Resolution Image Preview (Khung chứa ảnh vừa khít 100% kích thước ảnh: container size = image size) */}
-                  <div className="relative w-full flex-1 min-h-0 flex items-center justify-center overflow-hidden my-1">
-                    <div
-                      className="relative max-w-full max-h-full overflow-hidden border border-slate-800/80 bg-slate-950/90 rounded-lg group shadow-xl flex items-center justify-center transition-[aspect-ratio] duration-300"
-                      style={{ aspectRatio: (selectedImage.aspectRatio || "16/9").replace('/', ' / ') }}
-                    >
-                      {/* Ambient Blur Backdrop */}
-                      <img
-                        src={selectedImage.url}
-                        alt=""
-                        className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 pointer-events-none select-none"
-                      />
-                      {/* Foreground Image */}
-                      <img
-                        src={selectedImage.url}
-                        alt={selectedImage.title}
-                        className="relative z-10 w-full h-full object-cover rounded-lg drop-shadow-xl block"
-                      />
-                    </div>
+                  {/* High Resolution Image Preview (Aligned top, fit image size with aspect-ratio) */}
+                  <div
+                    className="relative w-full overflow-hidden border border-slate-800/80 bg-slate-950/90 rounded-lg group shadow-xl transition-[aspect-ratio] duration-300 max-h-[380px] sm:max-h-[420px] shrink-0"
+                    style={{ aspectRatio: (selectedImage.aspectRatio || "16/9").replace('/', ' / ') }}
+                  >
+                    {/* Ambient Blur Backdrop */}
+                    <img
+                      src={selectedImage.url}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 pointer-events-none select-none"
+                    />
+                    {/* Foreground Image */}
+                    <img
+                      src={selectedImage.url}
+                      alt={selectedImage.title}
+                      className="relative z-10 w-full h-full object-cover rounded-lg drop-shadow-xl block"
+                    />
                   </div>
 
-                  {/* Metadata Footer Section */}
-                  <div className="shrink-0 space-y-2">
-                    <h3 className="text-lg md:text-xl font-serif text-white font-bold leading-snug truncate">
+                  {/* Metadata Section stacked directly below image (Top to Bottom) */}
+                  <div className="w-full space-y-2.5">
+                    <h3 className="text-lg md:text-xl font-serif text-white font-bold leading-snug">
                       {selectedImage.title}
                     </h3>
 
                     {/* Date, Location & Category */}
-                    <div className="flex flex-wrap items-center gap-2.5 text-[12.5px] font-mono text-slate-400 pb-1.5 border-b border-slate-800/60">
+                    <div className="flex flex-wrap items-center gap-2.5 text-[12.5px] font-mono text-slate-400 pb-2 border-b border-slate-800/60">
                       <div className="flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5 text-blue-400" />
                         <span>{selectedImage.date}</span>
@@ -627,12 +625,12 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                     </div>
 
                     {/* Raw Minimalist Description (Hiển thị đầy đủ 100% mô tả) */}
-                    <p className="text-[13.5px] text-slate-300 leading-relaxed font-sans max-h-[120px] overflow-y-auto custom-scrollbar pr-1">
+                    <p className="text-[13.5px] text-slate-300 leading-relaxed font-sans">
                       {selectedImage.description}
                     </p>
 
                     {/* Raw Minimalist Tags */}
-                    <div className="flex flex-wrap gap-1.5 text-[12px] font-mono text-slate-400">
+                    <div className="flex flex-wrap gap-1.5 text-[12px] font-mono text-slate-400 pt-1">
                       {selectedImage.tags.map((tag, idx) => (
                         <span key={idx} className="hover:text-blue-400 transition-colors">
                           #{tag}

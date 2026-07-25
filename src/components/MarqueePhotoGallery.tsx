@@ -585,12 +585,22 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                   className="flex-1 flex flex-col justify-between my-2"
                 >
                   <div>
-                    {/* High Resolution Image Preview */}
-                    <div className="relative w-full aspect-video max-h-[340px] overflow-hidden border border-slate-800/80 mb-4 bg-black">
+                    {/* High Resolution Image Preview (Fit sát cạnh w-full khi kéo ra/vào + Giữ tỉ lệ gốc + Ambient Blur) */}
+                    <div
+                      className="relative w-full overflow-hidden border border-slate-800/80 mb-4 bg-slate-950/90 rounded-lg flex items-center justify-center group shadow-xl max-h-[460px] transition-[aspect-ratio] duration-300"
+                      style={{ aspectRatio: (selectedImage.aspectRatio || "16/9").replace('/', ' / ') }}
+                    >
+                      {/* Ambient Blur Backdrop */}
+                      <img
+                        src={selectedImage.url}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110 pointer-events-none select-none"
+                      />
+                      {/* Foreground Image Fit Edge (w-full h-full object-cover matching aspect ratio) */}
                       <img
                         src={selectedImage.url}
                         alt={selectedImage.title}
-                        className="w-full h-full object-cover"
+                        className="relative z-10 w-full h-full object-cover rounded-lg drop-shadow-xl"
                       />
                     </div>
 

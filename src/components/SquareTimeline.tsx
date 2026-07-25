@@ -124,19 +124,27 @@ export default function SquareTimeline() {
                 <X className="w-5 h-5" />
               </button>
 
-              {/* ALBUM SLIDESHOW CONTAINER (Chạy ngẫu nhiên / chuyển đổi các ảnh trong album) */}
-              <div className="relative w-full h-[300px] overflow-hidden border border-slate-800 group bg-slate-950">
+              {/* ALBUM SLIDESHOW CONTAINER (Ưu tiên hiển thị đúng tỉ lệ gốc của ảnh + ambient backdrop blur) */}
+              <div className="relative w-full h-[320px] overflow-hidden border border-slate-800 group bg-slate-950 flex items-center justify-center">
                 <AnimatePresence mode="wait">
-                  <motion.img
-                    key={currentImageIndex}
-                    src={selectedItem.images[currentImageIndex] || selectedItem.imageUrl}
-                    alt={`${selectedItem.title} - photo ${currentImageIndex + 1}`}
-                    initial={{ opacity: 0, scale: 1.05 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ duration: 0.6 }}
-                    className="w-full h-full object-cover"
-                  />
+                  <div key={currentImageIndex} className="absolute inset-0 w-full h-full">
+                    {/* Ambient Blur Backdrop */}
+                    <img
+                      src={selectedItem.images[currentImageIndex] || selectedItem.imageUrl}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-35 scale-110 pointer-events-none select-none"
+                    />
+                    {/* Foreground Full Aspect Ratio Image */}
+                    <motion.img
+                      src={selectedItem.images[currentImageIndex] || selectedItem.imageUrl}
+                      alt={`${selectedItem.title} - photo ${currentImageIndex + 1}`}
+                      initial={{ opacity: 0, scale: 1.03 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.97 }}
+                      transition={{ duration: 0.5 }}
+                      className="relative z-10 w-full h-full object-contain drop-shadow-xl"
+                    />
+                  </div>
                 </AnimatePresence>
 
                 {/* Top Badge: Year & Photo Count */}

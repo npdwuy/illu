@@ -79,6 +79,7 @@ export default function App() {
   const showLocationRef = useRef(false);
 
   const activeTabRef = useRef(activeTab);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -132,14 +133,22 @@ export default function App() {
             homeVisibleRef.current = false;
             if (homeSectionRef.current) {
               homeSectionRef.current.style.opacity = '0';
-              homeSectionRef.current.style.visibility = 'hidden';
               homeSectionRef.current.style.pointerEvents = 'none';
+              
+              // Trì hoãn gỡ SVG khỏi render tree để tránh chớp màn hình khi lướt nhanh
+              if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+              hideTimeoutRef.current = setTimeout(() => {
+                if (!homeVisibleRef.current && homeSectionRef.current) {
+                  homeSectionRef.current.style.visibility = 'hidden';
+                }
+              }, 400);
             }
           } else if (scrollVh < currentShowThreshold && !homeVisibleRef.current) {
             homeVisibleRef.current = true;
+            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
             if (homeSectionRef.current) {
-              homeSectionRef.current.style.opacity = '1';
               homeSectionRef.current.style.visibility = 'visible';
+              homeSectionRef.current.style.opacity = '1';
               homeSectionRef.current.style.pointerEvents = 'auto';
             }
           }

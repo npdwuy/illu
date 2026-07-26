@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import StickerDrag from "@/components/StickerDrag";
 import {
     Upload,
@@ -41,6 +42,11 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
     const [uploading, setUploading] = useState<boolean>(false);
     const [statusMsg, setStatusMsg] = useState<string>("");
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [mounted, setMounted] = useState<boolean>(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Expandable Canvas Height State (default 580px for SSR matching)
     const [canvasHeight, setCanvasHeight] = useState<number>(580);
@@ -75,9 +81,22 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
         }
     }, []);
 
-    // Modal state for editing description
+    // Modal state for editing description & uploader name
     const [editingSticker, setEditingSticker] = useState<StickerItem | null>(null);
     const [editDescText, setEditDescText] = useState<string>("");
+    const [editNameText, setEditNameText] = useState<string>("");
+
+    // Lock body scroll when any modal is open
+    useEffect(() => {
+        if (editingSticker || showNameModal) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [editingSticker, showNameModal]);
 
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -353,16 +372,21 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
         });
     };
 
-    // Edit description submit
+    // Edit description & uploader name submit
     const handleSaveDescription = () => {
         if (!editingSticker) return;
         setStickers((prev) => {
-            const updated = prev.map((s) => (s.id === editingSticker.id ? { ...s, description: editDescText } : s));
+            const updated = prev.map((s) =>
+                s.id === editingSticker.id
+                    ? { ...s, description: editDescText, uploaderName: editNameText.trim() }
+                    : s
+            );
             syncToDatabase(updated);
             return updated;
         });
         setEditingSticker(null);
         setEditDescText("");
+        setEditNameText("");
     };
 
     // Clear all canvas (deletes all stickers from Database & LocalStorage)
@@ -488,6 +512,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                         onClick={() => {
                                             setEditingSticker(sticker);
                                             setEditDescText(sticker.description || "");
+                                            setEditNameText(sticker.uploaderName || "");
                                         }}
                                         className="flex flex-col cursor-pointer group"
                                     >
@@ -502,10 +527,12 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
 
                                         {/* Text content directly below image */}
                                         <div className="mt-2 flex flex-col gap-0.5 min-w-0">
-                                            {/* Line 1: Tên người upload */}
-                                            <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
-                                                {sticker.uploaderName || "Người đăng khoảnh khắc"}
-                                            </h4>
+                                            {/* Line 1: Tên người upload (chỉ hiển thị khi có tên) */}
+                                            {sticker.uploaderName && sticker.uploaderName.trim() !== "" && (
+                                                <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
+                                                    {sticker.uploaderName}
+                                                </h4>
+                                            )}
                                             {/* Line 2: Description */}
                                             {sticker.description && (
                                                 <p className="text-[11px] sm:text-xs text-slate-400 font-sans font-light leading-snug line-clamp-3">
@@ -525,6 +552,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                         onClick={() => {
                                             setEditingSticker(sticker);
                                             setEditDescText(sticker.description || "");
+                                            setEditNameText(sticker.uploaderName || "");
                                         }}
                                         className="flex flex-col cursor-pointer group"
                                     >
@@ -539,10 +567,12 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
 
                                         {/* Text content directly below image */}
                                         <div className="mt-2 flex flex-col gap-0.5 min-w-0">
-                                            {/* Line 1: Tên người upload */}
-                                            <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
-                                                {sticker.uploaderName || "Người đăng khoảnh khắc"}
-                                            </h4>
+                                            {/* Line 1: Tên người upload (chỉ hiển thị khi có tên) */}
+                                            {sticker.uploaderName && sticker.uploaderName.trim() !== "" && (
+                                                <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
+                                                    {sticker.uploaderName}
+                                                </h4>
+                                            )}
                                             {/* Line 2: Description */}
                                             {sticker.description && (
                                                 <p className="text-[11px] sm:text-xs text-slate-400 font-sans font-light leading-snug line-clamp-3">
@@ -602,6 +632,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                 if (found) {
                                     setEditingSticker(found);
                                     setEditDescText(found.description || "");
+                                    setEditNameText(found.uploaderName || "");
                                 }
                             }}
                         />
@@ -626,23 +657,38 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                 </div>
             )}
 
-            {/* Description Edit Modal */}
-            {editingSticker && (
-                <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-slate-950 border border-slate-800 rounded-none p-6 w-full max-w-md shadow-2xl space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                            <h3 className="text-base font-bold text-amber-300 font-mono flex items-center gap-2">
-                                <MessageSquare className="w-4 h-4" />
-                                Chỉnh Sửa Mô Tả Khoảnh Khắc
+            {/* Description & Uploader Name Edit Modal (Rendered via React Portal to document.body for true viewport centering) */}
+            {mounted && editingSticker && createPortal(
+                <div className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center p-4">
+                    <div className="bg-zinc-950 border border-zinc-800 rounded-none p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 font-sans m-auto">
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                            <h3 className="text-sm sm:text-base font-bold text-amber-300 font-mono flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-amber-400" />
+                                Chỉnh Sửa Bức Ảnh
                             </h3>
                             <button
                                 onClick={() => setEditingSticker(null)}
-                                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-none cursor-pointer"
+                                className="p-1 hover:bg-zinc-800 text-slate-400 hover:text-white rounded-none cursor-pointer"
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
+                        {/* Field 1: Tên người đăng / Nickname */}
+                        <div>
+                            <label className="block text-xs font-mono text-slate-400 mb-1.5">
+                                Tên người đăng / Nickname
+                            </label>
+                            <input
+                                type="text"
+                                value={editNameText}
+                                onChange={(e) => setEditNameText(e.target.value)}
+                                placeholder="Nhập tên người đăng..."
+                                className="w-full rounded-none bg-zinc-900 border border-zinc-800 p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 font-sans"
+                            />
+                        </div>
+
+                        {/* Field 2: Ghi chú / Description */}
                         <div>
                             <label className="block text-xs font-mono text-slate-400 mb-1.5">
                                 Ghi chú / Câu chuyện kỷ niệm đêm tiệc
@@ -650,9 +696,9 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             <textarea
                                 value={editDescText}
                                 onChange={(e) => setEditDescText(e.target.value)}
-                                rows={4}
+                                rows={3}
                                 placeholder="Nhập cảm xúc, tên địa điểm, kỷ niệm gala..."
-                                className="w-full rounded-none bg-slate-900 border border-slate-800 p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 font-sans"
+                                className="w-full rounded-none bg-zinc-900 border border-zinc-800 p-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 font-sans"
                             />
                         </div>
 
@@ -665,7 +711,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                         handleDeleteSticker(targetId);
                                     }
                                 }}
-                                className="px-3.5 py-2 rounded-none border border-red-500/40 text-red-400 hover:bg-red-600 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                                className="px-3 py-1.5 rounded-none border border-red-500/40 text-red-400 hover:bg-red-600 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 <span>Xóa Bức Ảnh</span>
@@ -674,28 +720,29 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={() => setEditingSticker(null)}
-                                    className="px-4 py-2 rounded-none bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 cursor-pointer"
+                                    className="px-3 py-1.5 rounded-none bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-slate-300 cursor-pointer"
                                 >
-                                    Hủy bỏ
+                                    Hủy
                                 </button>
                                 <button
                                     onClick={handleSaveDescription}
-                                    className="px-4 py-2 rounded-none border border-amber-500/50 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs cursor-pointer"
+                                    className="px-3.5 py-1.5 rounded-none border border-amber-500/50 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs cursor-pointer shadow-md"
                                 >
                                     Lưu Mô Tả
                                 </button>
                             </div>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
-            {/* Mandatory Uploader Name/Nickname Modal */}
-            {showNameModal && (
-                <div className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-slate-950 border border-amber-500/50 rounded-none p-6 w-full max-w-md shadow-2xl space-y-4 font-sans">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                            <h3 className="text-base font-bold text-amber-300 font-mono flex items-center gap-2">
+            {/* Mandatory Uploader Name/Nickname Modal (Rendered via React Portal) */}
+            {mounted && showNameModal && createPortal(
+                <div className="fixed inset-0 z-[99999] bg-black/85 flex items-center justify-center p-4">
+                    <div className="bg-zinc-950 border border-amber-500/50 rounded-none p-5 sm:p-6 w-full max-w-md shadow-2xl space-y-4 font-sans m-auto">
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+                            <h3 className="text-sm sm:text-base font-bold text-amber-300 font-mono flex items-center gap-2">
                                 <Sparkles className="w-4 h-4 text-amber-400" />
                                 Tên / Nickname Của Bạn
                             </h3>
@@ -704,7 +751,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                     setShowNameModal(false);
                                     setPendingFiles(null);
                                 }}
-                                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-none cursor-pointer"
+                                className="p-1 hover:bg-zinc-800 text-slate-400 hover:text-white rounded-none cursor-pointer"
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -723,7 +770,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                 }}
                                 autoFocus
                                 placeholder="Ví dụ: Hoàng Nam, Minh Tuấn, Alex..."
-                                className="w-full rounded-none bg-slate-900 border border-slate-700 p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-sans"
+                                className="w-full rounded-none bg-zinc-900 border border-zinc-800 p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-sans"
                             />
                         </div>
 
@@ -733,19 +780,20 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                     setShowNameModal(false);
                                     setPendingFiles(null);
                                 }}
-                                className="px-4 py-2 rounded-none bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 cursor-pointer"
+                                className="px-3 py-1.5 rounded-none bg-zinc-800 hover:bg-zinc-700 text-xs font-mono text-slate-300 cursor-pointer"
                             >
                                 Hủy
                             </button>
                             <button
                                 onClick={handleConfirmName}
-                                className="px-5 py-2 rounded-none border border-amber-500/50 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs cursor-pointer shadow-lg"
+                                className="px-3.5 py-1.5 rounded-none border border-amber-500/50 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs cursor-pointer shadow-md"
                             >
                                 Xác Nhận & Đăng Ảnh
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

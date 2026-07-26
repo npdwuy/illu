@@ -65,7 +65,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
 
     let animationId: number;
     let lastTime = performance.now();
-    const baseSpeed = 0.65; // pixels per frame at 60fps baseline
+    const baseSpeed = 0.4; // pixels per frame at 60fps baseline
     const friction = 0.95; // dampening factor for momentum decay
     let isPaused = false;
 

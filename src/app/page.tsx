@@ -326,7 +326,7 @@ export default function App() {
               alt="Illustris Logo"
               width={64}
               height={45}
-              className="h-[22px] sm:h-9 w-auto object-contain"
+              className="h-[22px] sm:h-9 w-auto object-contain -translate-y-[3px]"
               priority
             />
             <div>

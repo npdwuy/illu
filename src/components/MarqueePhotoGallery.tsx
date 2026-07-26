@@ -268,7 +268,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
                 src={item.url}
                 alt={item.title}
                 fill
-                sizes="(max-width: 768px) 30vw, 350px"
+                unoptimized
                 className="object-cover pointer-events-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 pointer-events-none">
@@ -304,7 +304,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
                 src={item.url}
                 alt={item.title}
                 fill
-                sizes="(max-width: 768px) 30vw, 350px"
+                unoptimized
                 className="object-cover pointer-events-none"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 pointer-events-none">

@@ -240,8 +240,8 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
                   onItemClick(item);
                 }
               }}
-              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300"
-              style={{ aspectRatio: item.aspectRatio || "4/3" }}
+              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300 transform-gpu"
+              style={{ aspectRatio: item.aspectRatio || "4/3", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             >
               <Image
                 src={item.url}
@@ -276,8 +276,8 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
                   onItemClick(item);
                 }
               }}
-              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300"
-              style={{ aspectRatio: item.aspectRatio || "4/3" }}
+              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300 transform-gpu"
+              style={{ aspectRatio: item.aspectRatio || "4/3", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             >
               <Image
                 src={item.url}
@@ -312,8 +312,8 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
                   onItemClick(item);
                 }
               }}
-              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300"
-              style={{ aspectRatio: item.aspectRatio || "4/3" }}
+              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300 transform-gpu"
+              style={{ aspectRatio: item.aspectRatio || "4/3", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
             >
               <Image
                 src={item.url}

@@ -341,8 +341,8 @@ export default function SquareTimeline() {
                       alt={item.title}
                       fill
                       sizes="(max-width: 768px) 25vw, 250px"
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                      style={{ willChange: "transform" }}
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110 transform-gpu"
+                      style={{ willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                     />
 
                     {/* Hover Overlay */}
@@ -388,8 +388,8 @@ export default function SquareTimeline() {
                       alt={item.title}
                       fill
                       sizes="(max-width: 768px) 25vw, 250px"
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                      style={{ willChange: "transform" }}
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110 transform-gpu"
+                      style={{ willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                     />
 
                     {/* Hover Overlay */}
@@ -435,8 +435,8 @@ export default function SquareTimeline() {
                       alt={item.title}
                       fill
                       sizes="(max-width: 768px) 25vw, 250px"
-                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                      style={{ willChange: "transform" }}
+                      className="object-cover transition-transform duration-500 ease-out group-hover:scale-110 transform-gpu"
+                      style={{ willChange: "transform", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
                     />
 
                     {/* Hover Overlay */}

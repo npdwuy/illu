@@ -39,8 +39,9 @@ export default function CountdownCard({
     return () => observer.disconnect();
   }, [masterClockRef]);
 
-  // Event countdown timer
+  // Event countdown timer — skip entirely when card is hidden
   useEffect(() => {
+    if (!showCard) return;
     const targetDate = new Date('2026-07-26T16:30:00').getTime();
     const updateTimer = () => {
       const now = new Date().getTime();

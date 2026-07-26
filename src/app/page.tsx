@@ -8,13 +8,6 @@ import MarqueeAdminPanel from '@/components/MarqueeAdminPanel';
 import PartyCanvas from '@/components/PartyCanvas';
 import type { MarqueeImage } from '@/data/marqueeGalleryData';
 import React, { useState, useEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger);
-}
-import { useAdaptiveScale } from '@/hooks/useAdaptiveScale';
 import { computeParallax } from '@/hooks/useScrollParallax';
 import { Camera, Settings, X } from 'lucide-react';
 
@@ -23,7 +16,6 @@ import { Camera, Settings, X } from 'lucide-react';
 // Intro config moved to MasterClock
 
 export default function App() {
-  useAdaptiveScale(1920, 1080);
   const [activeTab, setActiveTab] = useState('home');
 
   // Marquee Gallery: server rows state + admin panel visibility
@@ -46,7 +38,6 @@ export default function App() {
   // ============================================================================
   // SETTING TRỰC TIẾP: Cấu hình Đệm Buffer & Vận tốc (Cơ chế 1: Native CSS Sticky + GPU Parallax)
   // ============================================================================
-  const homeRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLElement>(null);
   const homeSectionRef = useRef<HTMLElement>(null);
   const taglineRef = useRef<HTMLParagraphElement>(null);
@@ -55,16 +46,22 @@ export default function App() {
   const titleContainerRef = useRef<HTMLDivElement>(null);
   const buttonsRowRef = useRef<HTMLDivElement>(null);
   const isMobileRef = useRef<boolean>(false);
+  const galleryElRef = useRef<HTMLElement | null>(null);
 
   // Parallax config — static constants, never change at runtime
   // Track height formula: 100 + freezeVh*100 + 20  (from useScrollParallax default)
   const HOME_FREEZE_VH = 1.2;
   const TIMELINE_FREEZE_VH = 1.3;
+  const TIMELINE_MAX_PARALLAX_PX = 320; // Shared between config & CSS marginBottom
   const HOME_TRACK_HEIGHT_VH = 100 + HOME_FREEZE_VH * 100 + 20; // = 220vh
   const HOME_TRACK_HEIGHT_STYLE = { height: `${HOME_TRACK_HEIGHT_VH}vh` };
 
-  const homeParallaxConfig = { freezeVh: HOME_FREEZE_VH, speed: 0.1, direction: 'up' as const };
-  const timelineParallaxConfig = { freezeVh: TIMELINE_FREEZE_VH, speed: 0.5, direction: 'up' as const, maxParallaxPx: 320 };
+  // Home parallax: DISABLED — hero stays sticky, timeline slides up over it
+  const timelineParallaxConfig = { freezeVh: TIMELINE_FREEZE_VH, speed: 0.5, direction: 'up' as const, maxParallaxPx: TIMELINE_MAX_PARALLAX_PX };
+
+  // Smooth lerp factor for timeline parallax (0.08 = cinematic smooth)
+  const PARALLAX_LERP = 0.08;
+  const PARALLAX_SETTLE_THRESHOLD = 0.5; // Stop rAF loop when delta < 0.5px
 
   // Thresholds for home section visibility (in vh units)
   // Hide earlier to stop painting heavy SVGs & animations when timeline covers the screen
@@ -79,7 +76,10 @@ export default function App() {
   const showLocationRef = useRef(false);
 
   const activeTabRef = useRef(activeTab);
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Lerp state refs (mutable, no re-render)
+  const timelineCurrentY = useRef(0);
+  const timelineTargetY = useRef(0);
+  const lerpRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -90,7 +90,8 @@ export default function App() {
       }
     }
 
-    let ticking = false;
+    // Cache gallery element once to avoid getElementById every scroll frame
+    galleryElRef.current = document.getElementById('gallery');
 
     const handleResize = () => {
       isMobileRef.current = window.innerWidth < 768;
@@ -104,8 +105,53 @@ export default function App() {
       else { el.classList.add(...hidden.split(' ')); el.classList.remove(...shown.split(' ')); }
     };
 
-    // MASTER RAF LOOP: all scroll-driven DOM mutations happen here in a single frame
-    // to prevent competing rAF loops from causing mid-parallax flicker on multi-monitor setups.
+    // --- CSS transition for home section opacity (sync fade instead of setTimeout hack) ---
+    const handleTransitionEnd = (e: TransitionEvent) => {
+      if (e.propertyName === 'opacity' && !homeVisibleRef.current && homeSectionRef.current) {
+        homeSectionRef.current.style.visibility = 'hidden';
+      }
+    };
+    if (homeSectionRef.current) {
+      homeSectionRef.current.addEventListener('transitionend', handleTransitionEnd);
+    }
+
+    // --- Lerp rAF loop: smoothly interpolates timeline parallax toward target ---
+    const lerpLoop = () => {
+      const delta = timelineTargetY.current - timelineCurrentY.current;
+
+      if (Math.abs(delta) > PARALLAX_SETTLE_THRESHOLD) {
+        // Lerp toward target
+        timelineCurrentY.current += delta * PARALLAX_LERP;
+
+        if (timelineRef.current) {
+          timelineRef.current.style.transform = `translate3d(0, ${timelineCurrentY.current}px, 0)`;
+        }
+
+        lerpRafRef.current = requestAnimationFrame(lerpLoop);
+      } else {
+        // Settled — snap to exact target and stop loop
+        timelineCurrentY.current = timelineTargetY.current;
+        if (timelineRef.current) {
+          timelineRef.current.style.transform = `translate3d(0, ${timelineCurrentY.current}px, 0)`;
+          // Release GPU layer when parallax settled
+          timelineRef.current.style.willChange = 'auto';
+        }
+        lerpRafRef.current = null;
+      }
+    };
+
+    const startLerp = () => {
+      // Promote to GPU layer when animating
+      if (timelineRef.current) {
+        timelineRef.current.style.willChange = 'transform';
+      }
+      if (lerpRafRef.current === null) {
+        lerpRafRef.current = requestAnimationFrame(lerpLoop);
+      }
+    };
+
+    // MASTER SCROLL HANDLER: compute targets + trigger lerp + manage visibility
+    let ticking = false;
     const handleScroll = () => {
       if (!ticking) {
         window.requestAnimationFrame(() => {
@@ -114,18 +160,12 @@ export default function App() {
           const scrollVh = sy / vh;
           const isMobile = isMobileRef.current;
 
-          // --- Parallax: both computed and applied in same frame (no competing loops) ---
-          const homeResult = computeParallax(sy, vh, homeParallaxConfig);
+          // --- Timeline parallax target (lerp loop will smooth it) ---
           const timelineResult = computeParallax(sy, vh, timelineParallaxConfig);
+          timelineTargetY.current = timelineResult.parallaxY;
+          startLerp();
 
-          if (homeRef.current) {
-            homeRef.current.style.transform = `translate3d(0, ${homeResult.parallaxY}px, 0)`;
-          }
-          if (timelineRef.current) {
-            timelineRef.current.style.transform = `translate3d(0, ${timelineResult.parallaxY}px, 0)`;
-          }
-
-          // --- Home section opacity: direct DOM (no React re-render) ---
+          // --- Home section opacity: CSS transition handles the fade ---
           const currentHideThreshold = isMobile ? HOME_HIDE_THRESHOLD + 0.4 : HOME_HIDE_THRESHOLD;
           const currentShowThreshold = isMobile ? HOME_SHOW_THRESHOLD + 0.4 : HOME_SHOW_THRESHOLD;
 
@@ -134,18 +174,10 @@ export default function App() {
             if (homeSectionRef.current) {
               homeSectionRef.current.style.opacity = '0';
               homeSectionRef.current.style.pointerEvents = 'none';
-              
-              // Trì hoãn gỡ SVG khỏi render tree để tránh chớp màn hình khi lướt nhanh
-              if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-              hideTimeoutRef.current = setTimeout(() => {
-                if (!homeVisibleRef.current && homeSectionRef.current) {
-                  homeSectionRef.current.style.visibility = 'hidden';
-                }
-              }, 400);
+              // visibility: hidden is set by transitionend listener (synced with CSS fade)
             }
           } else if (scrollVh < currentShowThreshold && !homeVisibleRef.current) {
             homeVisibleRef.current = true;
-            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
             if (homeSectionRef.current) {
               homeSectionRef.current.style.visibility = 'visible';
               homeSectionRef.current.style.opacity = '1';
@@ -187,8 +219,7 @@ export default function App() {
           }
 
           // --- Active Tab: dynamically determined based on scroll position & gallery top ---
-          const galleryEl = document.getElementById('gallery');
-          const galleryTop = galleryEl ? galleryEl.getBoundingClientRect().top : Infinity;
+          const galleryTop = galleryElRef.current ? galleryElRef.current.getBoundingClientRect().top : Infinity;
 
           let newTab: string;
           if (sy < vh * 1.2) {
@@ -216,6 +247,10 @@ export default function App() {
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
+      if (lerpRafRef.current) cancelAnimationFrame(lerpRafRef.current);
+      if (homeSectionRef.current) {
+        homeSectionRef.current.removeEventListener('transitionend', handleTransitionEnd);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -236,6 +271,7 @@ export default function App() {
         e.preventDefault();
       }
     };
+    // Note: wheel listener uses {passive: false} only because preventDefault() is called for zoom blocking.
 
     // 2. Chặn Pinch-to-zoom 2 ngón tay trên Mobile
     const handleTouchStart = (e: TouchEvent) => {
@@ -282,7 +318,7 @@ export default function App() {
         const docTop = vh * (HOME_TRACK_HEIGHT_VH / 100);
         const freezeStart = TIMELINE_FREEZE_VH * vh;
         const speed = 0.5;
-        const maxParallax = 320;
+        const maxParallax = TIMELINE_MAX_PARALLAX_PX;
 
         const timelineEl = timelineRef.current;
         let relativeOffsetTop = 0;
@@ -334,7 +370,7 @@ export default function App() {
           {/* Logo */}
           <div className="flex items-center gap-2 sm:gap-3">
             <NextImage
-              src="/illu-logo.png"
+              src="/illu-logo.webp"
               alt="Illustris Logo"
               width={64}
               height={45}
@@ -392,19 +428,17 @@ export default function App() {
               id="home"
               ref={homeSectionRef}
               className="w-full h-full flex flex-col justify-start md:justify-center overflow-hidden pt-16 md:pt-20"
-              style={{ opacity: '1', pointerEvents: 'auto', willChange: 'opacity' }}
+              style={{ opacity: '1', pointerEvents: 'auto', transition: 'opacity 0.4s ease-out' }}
             >
               <div
-                ref={homeRef}
                 className="w-full h-full flex flex-col justify-start md:justify-center relative"
-                style={{ willChange: 'transform' }}
               >
                 {/* Expanded Hero Content Box */}
                 <div className="w-full px-[20px] z-10 pt-4 md:py-12 translate-y-0 md:-translate-y-16">
                   {/* TÙY CHỈNH KHOẢNG CÁCH GAP TRÊN/DƯỚI CHÍNH: Thay space-y-6 thành space-y-8, space-y-10, space-y-12,... */}
                   <div className="max-w-4xl mx-auto md:mx-0 space-y-4 md:space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
                     {/* TÙY CHỈNH KHOẢNG CÁCH GIỮA CÁC DÒNG TIÊU ĐỀ & CÂU KHẨU HIỆU: Thay space-y-2 thành space-y-3, space-y-4,... */}
-                    <div ref={titleContainerRef} style={{ willChange: "transform" }} className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full">
+                    <div ref={titleContainerRef} className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full">
                       <span className="text-xs sm:text-base md:text-lg font-semibold tracking-[0.25em] md:tracking-[0.35em] text-white/80 uppercase block font-condensed mb-1 md:mb-2 text-center md:text-left w-full">
                         KỶ NIỆM 10 NĂM THÀNH LẬP
                       </span>
@@ -506,7 +540,7 @@ export default function App() {
         id="timeline"
         ref={timelineRef}
         className="relative w-full z-20 bg-[#0a0a0c]/98 transform-gpu rounded-t-2xl md:rounded-t-3xl border-t border-white/10 shadow-[0_-50px_100px_rgba(0,0,0,0.95)] pt-8 md:pt-12 pb-4 overflow-hidden border-b border-white/[0.03]"
-        style={{ willChange: 'transform', marginBottom: '-320px' }}
+        style={{ marginBottom: `${-TIMELINE_MAX_PARALLAX_PX}px` }}
       >
         {/* Glow Accent Line & Cosmic Background Overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-blue-950/20 via-purple-950/10 to-transparent pointer-events-none z-0" />
@@ -577,14 +611,7 @@ export default function App() {
         onRowsChange={fetchMarqueeData}
       />
 
-      {/* Custom Scrollbar Styles */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-      `}} />
+      {/* Custom scrollbar styles are defined in globals.css */}
     </div>
   );
 }

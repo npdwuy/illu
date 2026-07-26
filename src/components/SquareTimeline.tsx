@@ -40,19 +40,14 @@ export default function SquareTimeline() {
     return () => clearInterval(timer);
   }, [selectedItem, isPlaying]);
 
-  // Preload all album slideshow images in background after mount
+  // Lazy preload: only cover images of first row (visible on mount), defer album images
   useEffect(() => {
     const timer = setTimeout(() => {
-      TIMELINE_ITEMS.forEach((item) => {
+      // Only preload the first 4 cover images (row 1, visible immediately)
+      TIMELINE_ITEMS.slice(0, 4).forEach((item) => {
         if (item.imageUrl) {
           const img = new window.Image();
           img.src = item.imageUrl;
-        }
-        if (item.images && item.images.length) {
-          item.images.forEach((src) => {
-            const img = new window.Image();
-            img.src = src;
-          });
         }
       });
     }, 1000);

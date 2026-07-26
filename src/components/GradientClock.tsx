@@ -83,6 +83,8 @@ function GradientClock({
   const [angles, setAngles] = useState({ hourDeg: 0, minDeg: 0 });
   const [isMounted, setIsMounted] = useState(false);
   const animFrameRef = useRef<number | null>(null);
+  const hourHandRef = useRef<HTMLDivElement>(null);
+  const minHandRef = useRef<HTMLDivElement>(null);
 
   const isPercent = typeof size === 'string';
 
@@ -112,38 +114,65 @@ function GradientClock({
 
     let startTimestamp: number | null = null;
     let stepCount = 0;
+    let isPageVisible = true;
+    let tickFn: ((ts: number) => void) | null = null;
+
+    // Pause rAF when tab is not visible to save CPU/battery
+    const handleVisibility = () => {
+      isPageVisible = !document.hidden;
+      if (isPageVisible && smooth && !animFrameRef.current && tickFn) {
+        animFrameRef.current = requestAnimationFrame(tickFn);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    // Direct DOM mutation helper — avoids React re-render per frame
+    const applyAngles = (hourDeg: number, minDeg: number) => {
+      if (hourHandRef.current) {
+        hourHandRef.current.style.transform = `translate(-${hourPivotX}%, -${hourPivotY}%) rotate(${hourDeg}deg)`;
+      }
+      if (minHandRef.current) {
+        minHandRef.current.style.transform = `translate(-${minPivotX}%, -${minPivotY}%) rotate(${minDeg}deg)`;
+      }
+    };
 
     if (smooth) {
-      // Chế độ xoay mượt 60fps
+      // Smooth 60fps mode — direct DOM mutation, no React re-render
       const tick = (timestamp: number) => {
+        if (!isPageVisible) {
+          animFrameRef.current = null;
+          return;
+        }
         if (!startTimestamp) startTimestamp = timestamp;
 
+        let hourDeg: number, minDeg: number;
         if (autoSpin) {
           const elapsedSec = ((timestamp - startTimestamp) / 1000) * spinSpeed;
-          const minDeg = (elapsedSec * 30 - 90 + minOffsetDeg) % 360;
-          const hourDeg = (elapsedSec * 5 - 90 + hourOffsetDeg) % 360;
-          setAngles({ hourDeg, minDeg });
+          minDeg = (elapsedSec * 30 - 90 + minOffsetDeg) % 360;
+          hourDeg = (elapsedSec * 5 - 90 + hourOffsetDeg) % 360;
         } else {
           const now = new Date();
           const ms = now.getMilliseconds();
           const seconds = now.getSeconds() + ms / 1000;
           const minutes = now.getMinutes() + seconds / 60;
           const hours = (now.getHours() % 12) + minutes / 60;
-
-          const minDeg = minutes * 6 - 90 + minOffsetDeg;
-          const hourDeg = hours * 30 - 90 + hourOffsetDeg;
-          setAngles({ hourDeg, minDeg });
+          minDeg = minutes * 6 - 90 + minOffsetDeg;
+          hourDeg = hours * 30 - 90 + hourOffsetDeg;
         }
 
+        applyAngles(hourDeg, minDeg);
         animFrameRef.current = requestAnimationFrame(tick);
       };
+
+      tickFn = tick;
 
       animFrameRef.current = requestAnimationFrame(tick);
       return () => {
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        document.removeEventListener('visibilitychange', handleVisibility);
       };
     } else {
-      // Chế độ giật từng nấc (1 nấc chuẩn = 1/60 vòng = 6° cho kim phút, 0.5° cho kim giờ)
+      // Step mode — interval-based, uses setState since updates are infrequent
       const intervalMs = Math.max(30, Math.round(tickIntervalMs / Math.max(0.1, spinSpeed)));
 
       const updateClock = () => {
@@ -157,7 +186,6 @@ function GradientClock({
           const seconds = now.getSeconds();
           const minutes = now.getMinutes() + seconds / 60;
           const hours = (now.getHours() % 12) + minutes / 60;
-
           const minDeg = minutes * 6 - 90 + minOffsetDeg;
           const hourDeg = hours * 30 - 90 + hourOffsetDeg;
           setAngles({ hourDeg, minDeg });
@@ -167,9 +195,12 @@ function GradientClock({
       updateClock();
       const updateInterval = setInterval(updateClock, intervalMs);
 
-      return () => clearInterval(updateInterval);
+      return () => {
+        clearInterval(updateInterval);
+        document.removeEventListener('visibilitychange', handleVisibility);
+      };
     }
-  }, [smooth, autoSpin, spinSpeed, tickIntervalMs, hourOffsetDeg, minOffsetDeg, manualHourDeg, manualMinDeg]);
+  }, [smooth, autoSpin, spinSpeed, tickIntervalMs, hourOffsetDeg, minOffsetDeg, hourPivotX, hourPivotY, minPivotX, minPivotY, manualHourDeg, manualMinDeg]);
 
   if (!isMounted) {
     return (
@@ -202,6 +233,7 @@ function GradientClock({
     >
       {/* Kim Giờ (Pivot ở vị trí bên trái) */}
       <div
+        ref={hourHandRef}
         className={`absolute top-1/2 left-1/2 pointer-events-none ${
           !smooth ? 'transition-transform duration-100 ease-out' : ''
         }`}
@@ -230,6 +262,7 @@ function GradientClock({
 
       {/* Kim Phút (Pivot ở vị trí bên trái) */}
       <div
+        ref={minHandRef}
         className={`absolute top-1/2 left-1/2 pointer-events-none ${
           !smooth ? 'transition-transform duration-100 ease-out' : ''
         }`}

@@ -67,8 +67,26 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
     let lastTime = performance.now();
     const baseSpeed = 0.65; // pixels per frame at 60fps baseline
     const friction = 0.95; // dampening factor for momentum decay
+    let isPaused = false;
+
+    // Pause rAF when row is not visible (saves CPU/battery on mobile)
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isPaused = !entry.isIntersecting;
+        if (!isPaused) {
+          lastTime = performance.now();
+          animationId = requestAnimationFrame(loop);
+        }
+      },
+      { threshold: 0 }
+    );
+    if (trackRef.current?.parentElement) {
+      observer.observe(trackRef.current.parentElement);
+    }
 
     const loop = (now: number) => {
+      if (isPaused) return; // Don't schedule next frame when off-screen
+
       // Calculate Delta-Time normalized to 60fps baseline (1.0 at 60Hz, 0.416 at 144Hz)
       const delta = Math.min((now - lastTime) / 16.667, 2.5);
       lastTime = now;
@@ -117,7 +135,10 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
     };
 
     animationId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animationId);
+    return () => {
+      cancelAnimationFrame(animationId);
+      observer.disconnect();
+    };
   }, [isEven, rowItems]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -227,7 +248,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
-        {/* Render 3 identical groups to guarantee seamless cyclic scroll loop */}
+        {/* Render 2 identical groups for seamless cyclic scroll loop */}
         <div ref={groupRef} className="flex gap-2 shrink-0 h-full">
           {rowItems.map((item) => (
             <div
@@ -268,42 +289,6 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
           {rowItems.map((item) => (
             <div
               key={`${item.id}-g2`}
-              onClick={(e) => {
-                if (hasDraggedRef.current) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                } else {
-                  onItemClick(item);
-                }
-              }}
-              className="relative h-full shrink-0 overflow-hidden cursor-pointer border border-slate-800 hover:border-slate-500 transition-all duration-300 transform-gpu"
-              style={{ aspectRatio: item.aspectRatio || "4/3", backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
-            >
-              <Image
-                src={item.url}
-                alt={item.title}
-                fill
-                sizes="(max-width: 768px) 30vw, 350px"
-                className="object-cover pointer-events-none"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 pointer-events-none">
-                <span className="self-end bg-black/80 px-2 py-0.5 border border-slate-800 font-mono text-[13.5px] text-blue-400 mb-2">
-                  {item.category}
-                </span>
-                <h4 className="text-[13.5px] font-bold text-white truncate">{item.title}</h4>
-                <p className="text-[13.5px] font-mono text-slate-300 flex items-center gap-1 truncate mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-blue-400" />
-                  {item.location}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-2 shrink-0 h-full">
-          {rowItems.map((item) => (
-            <div
-              key={`${item.id}-g3`}
               onClick={(e) => {
                 if (hasDraggedRef.current) {
                   e.preventDefault();
@@ -390,11 +375,13 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
   // Use server-provided rows strictly as the single source of truth, fallback to 3 empty rows to prevent layout collapse
   const sourceRows: MarqueeImage[][] = (externalRows && externalRows.length > 0) ? externalRows : [[], [], []];
 
-  // Preload all marquee detail images in background after mount
+  // Lazy preload: only first 6 images on mount, rest deferred to IntersectionObserver
   useEffect(() => {
     if (!sourceRows || sourceRows.length === 0) return;
     const timer = setTimeout(() => {
-      sourceRows.flat().forEach((item) => {
+      const allImages = sourceRows.flat();
+      // Preload only the first 6 visible images immediately
+      allImages.slice(0, 6).forEach((item) => {
         if (item && item.url) {
           const img = new window.Image();
           img.src = item.url;

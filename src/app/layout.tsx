@@ -28,7 +28,7 @@ const perandory = localFont({
 });
 
 const barlowCondensed = Barlow_Condensed({
-  weight: ["100", "200", "300", "400", "500", "600", "700"],
+  weight: ["300", "400", "500", "600", "700"],
   subsets: ["latin", "vietnamese"],
   variable: "--font-condensed",
   display: "swap",

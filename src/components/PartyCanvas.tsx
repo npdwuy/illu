@@ -190,6 +190,19 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                     const data = await res.json();
 
                     if (res.ok && data.url) {
+                        // Preload image to get natural aspect ratio
+                        const img = new Image();
+                        img.src = data.url;
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                        });
+
+                        const naturalW = img.naturalWidth || 380;
+                        const naturalH = img.naturalHeight || 260;
+                        const baseWidth = 360;
+                        const calculatedHeight = Math.max(100, Math.round(baseWidth * (naturalH / naturalW)));
+
                         const col = i % 3;
                         const row = Math.floor(i / 3);
                         const offsetX = col * 60 + (i * 30) % 90;
@@ -198,7 +211,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                         const posX = Math.max(20, basePosX + offsetX);
                         const posY = Math.max(20, basePosY + offsetY);
 
-                        if (!isMobile && posY + 260 > canvasHeight - 60 && canvasHeight < 2800) {
+                        if (!isMobile && posY + calculatedHeight > canvasHeight - 60 && canvasHeight < 2800) {
                             setCanvasHeight((prev) => {
                                 const next = Math.min(prev + 300, 3000);
                                 localStorage.setItem("party_canvas_height", next.toString());
@@ -211,8 +224,8 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             url: data.url,
                             x: posX,
                             y: posY,
-                            width: 380,
-                            height: 260,
+                            width: baseWidth,
+                            height: calculatedHeight,
                             description: `Kỷ niệm đêm tiệc ${new Date().toLocaleDateString("vi-VN")}`,
                             uploaderName: nameToUse,
                             elevation: 5,
@@ -412,7 +425,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    multiple={!isMobile}
+                    multiple={false}
                     className="hidden"
                     onChange={onFileSelected}
                 />
@@ -433,7 +446,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                     className="px-4 py-2 rounded-none border border-blue-500/50 text-xs font-mono font-bold uppercase tracking-wider text-white bg-blue-950/80 hover:bg-blue-600 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 backdrop-blur-md"
                 >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>{uploading ? (statusMsg || "Đang Upload...") : isMobile ? "Đăng Ảnh (+)" : "Đăng Nhiều Ảnh (+)"}</span>
+                    <span>{uploading ? (statusMsg || "Đang Upload...") : "Đăng Ảnh"}</span>
                 </button>
 
                 {userNickname && (
@@ -442,10 +455,10 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             setTempNameInput(userNickname);
                             setShowNameModal(true);
                         }}
-                        className="px-2 py-1 text-[11px] font-mono text-amber-400 hover:text-white transition-colors backdrop-blur-md cursor-pointer"
+                        className="px-2.5 py-1 text-[11px] font-mono text-amber-400 border border-amber-500/30 hover:border-amber-400 bg-zinc-900/80 hover:text-white transition-colors backdrop-blur-md cursor-pointer"
                         title="Bấm để đổi Tên/Nickname"
                     >
-                        [{userNickname}]
+                        {userNickname}
                     </button>
                 )}
 
@@ -453,7 +466,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                     <>
                         {/* Paste Button: Sharp Box 1x */}
                         <button
-                            onClick={() => alert("Mẹo: Chọn cùng lúc nhiều ảnh trong hộp thoại mở file hoặc quét chọn nhiều file để kéo thả vào khung! Bạn cũng có thể dùng Ctrl+V để dán ảnh trực tiếp.")}
+                            onClick={() => alert("Mẹo: Bạn có thể bấm Đăng Ảnh để chọn file, hoặc dán trực tiếp ảnh từ bộ nhớ tạm (Ctrl+V)!")}
                             className="px-3.5 py-2 rounded-none border border-white/15 text-xs font-mono text-slate-300 hover:text-white bg-zinc-900/80 hover:bg-zinc-800 transition-all flex items-center gap-1.5 backdrop-blur-md"
                             title="Dán từ Clipboard (Ctrl+V)"
                         >
@@ -468,7 +481,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             title="Tăng độ cao không gian canvas để sắp xếp thêm nhiều ảnh"
                         >
                             <Maximize2 className="w-3.5 h-3.5" />
-                            <span>+ Mở Rộng Khung ({canvasHeight}px)</span>
+                            <span>Mở Rộng Khung ({canvasHeight}px)</span>
                         </button>
 
                         {canvasHeight > 580 && (
@@ -535,7 +548,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                             )}
                                             {/* Line 2: Description */}
                                             {sticker.description && (
-                                                <p className="text-[11px] sm:text-xs text-slate-400 font-sans font-light leading-snug line-clamp-3">
+                                                <p className="text-[11px] sm:text-xs text-slate-300 font-sans font-light leading-snug whitespace-pre-wrap break-words">
                                                     {sticker.description}
                                                 </p>
                                             )}
@@ -569,13 +582,13 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                         <div className="mt-2 flex flex-col gap-0.5 min-w-0">
                                             {/* Line 1: Tên người upload (chỉ hiển thị khi có tên) */}
                                             {sticker.uploaderName && sticker.uploaderName.trim() !== "" && (
-                                                <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
+                                                <h4 className="font-bold text-white text-xs sm:text-sm font-sans leading-tight">
                                                     {sticker.uploaderName}
                                                 </h4>
                                             )}
                                             {/* Line 2: Description */}
                                             {sticker.description && (
-                                                <p className="text-[11px] sm:text-xs text-slate-400 font-sans font-light leading-snug line-clamp-3">
+                                                <p className="text-[11px] sm:text-xs text-slate-300 font-sans font-light leading-snug whitespace-pre-wrap break-words">
                                                     {sticker.description}
                                                 </p>
                                             )}
@@ -599,10 +612,10 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                     {stickers.length === 0 && !loading && (
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
                             <p className="text-slate-400 text-xs tracking-widest font-mono uppercase font-semibold">
-                                {uploading ? (statusMsg || "ĐANG TẢI ẢNH LÊN BUCKET...") : "CHƯA CÓ ẢNH NÀO ĐƯỢC ĐĂNG. HÃY ĐĂNG NHIỀU ẢNH KỶ NIỆM ĐẦU TIÊN!"}
+                                {uploading ? (statusMsg || "ĐANG TẢI ẢNH LÊN BUCKET...") : "CHƯA CÓ ẢNH NÀO ĐƯỢC ĐĂNG. HÃY ĐĂNG KHOẢNH KHẮC ĐẦU TIÊN!"}
                             </p>
                             <p className="text-[11.5px] text-slate-500 font-mono mt-2 max-w-md">
-                                (Bấm <span className="text-blue-400 font-bold">Đăng Nhiều Ảnh</span> để chọn hàng loạt file, kéo thả nhiều ảnh cùng lúc, hoặc bấm <span className="text-amber-400 font-bold">+ Mở Rộng Khung</span> để tăng diện tích lưu giữ)
+                                (Bấm <span className="text-blue-400 font-bold">Đăng Ảnh</span> để chọn file dán vào khung, hoặc kéo thả ảnh trực tiếp)
                             </p>
                         </div>
                     )}
@@ -618,6 +631,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             x={sticker.x}
                             y={sticker.y}
                             description={sticker.description}
+                            uploaderName={sticker.uploaderName}
                             elevation={sticker.elevation}
                             sheenMode={sticker.sheenMode}
                             lightingColor={sticker.lightingColor}

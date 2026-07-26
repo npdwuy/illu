@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useCallback, useState } from "react";
-import { Edit3, Trash2, ArrowUpRight, Sparkles, MessageSquare } from "lucide-react";
+import { Edit3, Trash2, ArrowUpRight, Sparkles, MessageSquare, Minus, Plus } from "lucide-react";
 
 const RenderTarget = {
     current: () => "preview",
@@ -35,6 +35,7 @@ export interface StickerDragProps {
     x?: number;
     y?: number;
     description?: string;
+    uploaderName?: string;
     tilt?: number;
     tiltSmoothing?: number;
     lighting?: boolean;
@@ -278,6 +279,7 @@ export default function StickerDrag(props: StickerDragProps) {
         x = 50,
         y = 50,
         description = "",
+        uploaderName = "",
         tilt = 15,
         tiltSmoothing = 0.05,
         lighting = true,
@@ -668,6 +670,15 @@ export default function StickerDrag(props: StickerDragProps) {
 
                 textureRef.current = texture;
                 state.texReady = true;
+
+                // Auto-sync container height to natural aspect ratio of original image
+                if (img.naturalWidth && img.naturalHeight && onResizeWidth && id) {
+                    const naturalRatio = img.naturalHeight / img.naturalWidth;
+                    const expectedHeight = Math.round(imageWidth * naturalRatio);
+                    if (Math.abs(expectedHeight - imageHeight) > 4) {
+                        onResizeWidth(id, imageWidth);
+                    }
+                }
 
                 handleResize();
                 updateShadowCSS();
@@ -1078,7 +1089,9 @@ export default function StickerDrag(props: StickerDragProps) {
             {/* Action Bar Floating Controls */}
             {(showControls || isSelected) && (
                 <div
-                    className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-950/95 backdrop-blur-md border border-amber-500/50 rounded-none px-3 py-1.5 text-white shadow-2xl z-50 transition-all duration-200"
+                    className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-950/95 backdrop-blur-md border border-amber-500/50 rounded-none px-3 py-1.5 text-white shadow-2xl z-50 transition-all duration-200 before:absolute before:-bottom-4 before:inset-x-0 before:h-4 before:content-['']"
+                    onMouseEnter={() => setShowControls(true)}
+                    onMouseLeave={() => setShowControls(false)}
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                 >
@@ -1109,35 +1122,45 @@ export default function StickerDrag(props: StickerDragProps) {
                         <div className="flex items-center gap-1 border-l border-white/20 pl-2 ml-1">
                             <button
                                 onClick={() => onResizeWidth(id, Math.max(140, Math.round(imageWidth - 40)))}
-                                className="px-1.5 py-0.5 hover:bg-amber-500/20 rounded-none text-amber-300 hover:text-amber-200 text-xs font-mono font-bold transition-colors cursor-pointer"
+                                className="px-1.5 py-0.5 hover:bg-amber-500/20 rounded-none text-amber-300 hover:text-amber-200 text-xs font-mono font-bold transition-colors cursor-pointer flex items-center gap-1"
                                 title="Thu nhỏ chiều rộng (-40px)"
                             >
-                                -W
+                                <Minus className="w-3.5 h-3.5" />
+                                <span>Rộng</span>
                             </button>
                             <span className="text-[10px] font-mono text-slate-300 min-w-[38px] text-center">
                                 {imageWidth}px
                             </span>
                             <button
                                 onClick={() => onResizeWidth(id, Math.min(1000, Math.round(imageWidth + 40)))}
-                                className="px-1.5 py-0.5 hover:bg-amber-500/20 rounded-none text-amber-300 hover:text-amber-200 text-xs font-mono font-bold transition-colors cursor-pointer"
+                                className="px-1.5 py-0.5 hover:bg-amber-500/20 rounded-none text-amber-300 hover:text-amber-200 text-xs font-mono font-bold transition-colors cursor-pointer flex items-center gap-1"
                                 title="Phóng lớn chiều rộng (+40px)"
                             >
-                                +W
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>Rộng</span>
                             </button>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Floating Description Badge / Tape note */}
-            {description && (
+            {/* Desktop Description Box: Full width equal to image width, pure black background, white text, 100% full content */}
+            {(description || (uploaderName && uploaderName.trim() !== "")) && (
                 <div
-                    className="absolute -bottom-8 left-1/2 -translate-x-1/2 max-w-[260px] truncate bg-amber-950/90 border border-amber-500/40 text-amber-100 text-xs px-3 py-1 rounded-none font-mono backdrop-blur-sm flex items-center gap-1.5 cursor-pointer hover:max-w-none hover:whitespace-normal hover:z-50 transition-all"
+                    className="absolute top-full left-0 w-full bg-black border-t border-zinc-800 p-3 text-sm font-sans text-white z-40 pointer-events-auto cursor-pointer shadow-xl"
                     onClick={() => onEditDescription?.(id)}
-                    title={description}
+                    title="Bấm để chỉnh sửa bức ảnh"
                 >
-                    <MessageSquare className="w-3 h-3 text-amber-400 shrink-0" />
-                    <span className="truncate">{description}</span>
+                    {uploaderName && uploaderName.trim() !== "" && (
+                        <div className="font-bold text-white text-xs sm:text-sm font-sans mb-1 leading-tight">
+                            {uploaderName}
+                        </div>
+                    )}
+                    {description && (
+                        <div className="text-slate-100 text-xs sm:text-[13px] md:text-[13.5px] font-sans font-normal leading-relaxed whitespace-pre-wrap break-words">
+                            {description}
+                        </div>
+                    )}
                 </div>
             )}
         </div>

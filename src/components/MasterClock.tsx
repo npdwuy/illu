@@ -137,7 +137,7 @@ export default function MasterClock() {
   const currentHourAngle = ((9 + introMinuteCount / 60) * 30 - 90) % 360;
 
   return (
-    <div className="absolute bottom-0 right-0 md:left-auto md:top-0 md:right-0 h-[56.25vw] md:h-full w-[100vw] md:w-auto pointer-events-none z-0 opacity-100 select-none overflow-visible md:overflow-hidden flex items-end justify-end">
+    <div className="absolute bottom-0 right-0 md:left-auto md:top-0 md:right-0 w-[140vw] h-[78.75vw] md:h-full md:w-auto pointer-events-none z-0 opacity-100 select-none overflow-visible md:overflow-hidden flex items-end justify-end">
       <div ref={masterClockRef} className="relative h-full aspect-[1440/810] flex items-end justify-end overflow-visible">
         {/* Layer 1: Nền SVG Clock chính */}
         <NextImage

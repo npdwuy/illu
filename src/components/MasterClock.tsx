@@ -278,7 +278,7 @@ export default function MasterClock() {
             </clipPath>
           </defs>
 
-          <g clipPath="url(#numberReelWindow)" fontFamily="Perandory" fontSize="480" fill="url(#num10Gradient)" dominantBaseline="central">
+          <g className="hidden md:inline" clipPath="url(#numberReelWindow)" fontFamily="Perandory" fontSize="480" fill="url(#num10Gradient)" dominantBaseline="central">
             {/* Hàng chục (x=730) */}
             <g transform={`translate(0, -${easedTensProgress * 9 * 360})`}>
               {[0, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((digit, idx) => {
@@ -323,32 +323,56 @@ export default function MasterClock() {
             </g>
           </g>
 
+          {/* Bản tĩnh số 10 dành riêng cho Mobile (loại bỏ ghost 09) */}
+          <g className="inline md:hidden" clipPath="url(#numberReelWindow)" fontFamily="Perandory" fontSize="480" fill="url(#num10Gradient)" dominantBaseline="central">
+            <text x="730" y="370" textAnchor="middle">
+              1
+            </text>
+            <text x="940" y="370" textAnchor="middle">
+              0
+            </text>
+          </g>
+
           {/* ANIMATION 5 NGÔI SAO XUẤT HIỆN */}
-          {STAR_ANIM_CONFIG.map((star) => {
-            const activeDelay = star.delaySec;
-            const ageSec = Math.max(0, introElapsedSec - activeDelay);
-            const durationSec = Math.max(0.2, TOTAL_INTRO_DURATION_SEC - activeDelay);
-            const starRawProgress = Math.min(1, ageSec / durationSec);
+          <g className="hidden md:inline">
+            {STAR_ANIM_CONFIG.map((star) => {
+              const activeDelay = star.delaySec;
+              const ageSec = Math.max(0, introElapsedSec - activeDelay);
+              const durationSec = Math.max(0.2, TOTAL_INTRO_DURATION_SEC - activeDelay);
+              const starRawProgress = Math.min(1, ageSec / durationSec);
 
-            const curve = star.bezierCurve ?? STAR_BEZIER_CURVE;
-            const starEasedP = solveCubicBezier(curve[0], curve[1], curve[2], curve[3], starRawProgress);
+              const curve = star.bezierCurve ?? STAR_BEZIER_CURVE;
+              const starEasedP = solveCubicBezier(curve[0], curve[1], curve[2], curve[3], starRawProgress);
 
-            const starOpacity = starEasedP;
-            const starScale = starEasedP * star.baseScale;
-            const starRotation = (1 - starEasedP) * (star.turns * star.spinSpeed * 360) + star.endRotation;
+              const starOpacity = starEasedP;
+              const starScale = starEasedP * star.baseScale;
+              const starRotation = (1 - starEasedP) * (star.turns * star.spinSpeed * 360) + star.endRotation;
 
-            if (starOpacity <= 0) return null;
+              if (starOpacity <= 0) return null;
 
-            return (
+              return (
+                <g
+                  key={star.id}
+                  transform={`translate(${star.x}, ${star.y}) scale(${starScale}) rotate(${starRotation})`}
+                  opacity={starOpacity}
+                >
+                  <use href="#star10Shape" fill={star.fill} />
+                </g>
+              );
+            })}
+          </g>
+
+          {/* Bản tĩnh 5 Ngôi sao dành riêng cho Mobile */}
+          <g className="inline md:hidden">
+            {STAR_ANIM_CONFIG.map((star) => (
               <g
-                key={star.id}
-                transform={`translate(${star.x}, ${star.y}) scale(${starScale}) rotate(${starRotation})`}
-                opacity={starOpacity}
+                key={`m-${star.id}`}
+                transform={`translate(${star.x}, ${star.y}) scale(${star.baseScale}) rotate(${star.endRotation})`}
               >
                 <use href="#star10Shape" fill={star.fill} />
               </g>
-            );
-          })}
+            ))}
+          </g>
         </svg>
       </div>
     </div>

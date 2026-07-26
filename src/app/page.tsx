@@ -396,7 +396,7 @@ export default function App() {
                       <span className="text-xs sm:text-base md:text-lg font-semibold tracking-[0.25em] md:tracking-[0.35em] text-white/80 uppercase block font-condensed mb-1 md:mb-2 text-center md:text-left w-full">
                         KỶ NIỆM 10 NĂM THÀNH LẬP
                       </span>
-                      <h1 className="text-7xl sm:text-[108px] md:text-[180px] font-perandory tracking-wide leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#0a08b6] via-[#46c2ff] to-white drop-shadow-[0_10px_25px_rgba(10,8,182,0.35)] -mb-1 text-center md:text-left w-full">
+                      <h1 className="text-7xl sm:text-[108px] md:text-[120px] xl:text-[140px] font-perandory tracking-wide leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#0a08b6] via-[#46c2ff] to-white drop-shadow-[0_10px_25px_rgba(10,8,182,0.35)] -mb-1 text-center md:text-left w-full">
                         ILLUSTRIS
                       </h1>
                       <h2 className="text-xs sm:text-sm md:text-base font-medium tracking-[0.2em] md:tracking-[0.25em] text-white/75 uppercase leading-none font-condensed flex items-center justify-center md:justify-start pt-0.5 md:pt-1 w-full pl-[5px]">

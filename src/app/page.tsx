@@ -67,8 +67,9 @@ export default function App() {
   const timelineParallaxConfig = { freezeVh: TIMELINE_FREEZE_VH, speed: 0.5, direction: 'up' as const, maxParallaxPx: 320 };
 
   // Thresholds for home section visibility (in vh units)
-  const HOME_HIDE_THRESHOLD = (HOME_TRACK_HEIGHT_VH / 100) + 0; // = 4.0vh
-  const HOME_SHOW_THRESHOLD = (HOME_TRACK_HEIGHT_VH / 100) + 0; // = 4.4vh
+  // Hide earlier to stop painting heavy SVGs & animations when timeline covers the screen
+  const HOME_HIDE_THRESHOLD = 1.85; 
+  const HOME_SHOW_THRESHOLD = 1.80; 
 
   // Scroll animation: use refs + direct DOM mutations to avoid React re-render on every scroll frame
   const homeVisibleRef = useRef(true);
@@ -128,12 +129,14 @@ export default function App() {
             homeVisibleRef.current = false;
             if (homeSectionRef.current) {
               homeSectionRef.current.style.opacity = '0';
+              homeSectionRef.current.style.visibility = 'hidden';
               homeSectionRef.current.style.pointerEvents = 'none';
             }
           } else if (scrollVh < HOME_SHOW_THRESHOLD && !homeVisibleRef.current) {
             homeVisibleRef.current = true;
             if (homeSectionRef.current) {
               homeSectionRef.current.style.opacity = '1';
+              homeSectionRef.current.style.visibility = 'visible';
               homeSectionRef.current.style.pointerEvents = 'auto';
             }
           }

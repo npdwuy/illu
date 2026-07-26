@@ -60,6 +60,7 @@ export async function ensureTablesExist() {
       width REAL NOT NULL DEFAULT 400,
       height REAL NOT NULL DEFAULT 300,
       description TEXT,
+      uploader_name TEXT,
       elevation REAL DEFAULT 10,
       sheen_mode TEXT DEFAULT 'sheen',
       lighting_color TEXT DEFAULT '#ffffff',
@@ -84,4 +85,10 @@ export async function ensureTablesExist() {
       updated_at TEXT DEFAULT (datetime('now'))
     );`
   ], 'write');
+
+  try {
+    await db.execute(`ALTER TABLE party_canvas_stickers ADD COLUMN uploader_name TEXT;`);
+  } catch (e) {
+    // Column already exists
+  }
 }

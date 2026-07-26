@@ -24,6 +24,7 @@ export interface StickerItem {
     width: number;
     height: number;
     description: string;
+    uploaderName?: string;
     elevation: number;
     sheenMode: "sheen" | "holo";
     lightingColor: string;
@@ -44,8 +45,27 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
     // Expandable Canvas Height State (default 580px for SSR matching)
     const [canvasHeight, setCanvasHeight] = useState<number>(580);
 
-    // Sync saved height from localStorage after client hydration
+    const [isMobile, setIsMobile] = useState<boolean>(false);
+
     useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768);
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+    // Uploader Name / Nickname Mandatory State
+    const [userNickname, setUserNickname] = useState<string>("");
+    const [showNameModal, setShowNameModal] = useState<boolean>(false);
+    const [tempNameInput, setTempNameInput] = useState<string>("");
+    const [pendingFiles, setPendingFiles] = useState<{ files: File[]; targetX?: number; targetY?: number } | null>(null);
+
+    // Sync saved height and uploader nickname from localStorage after client hydration
+    useEffect(() => {
+        const savedName = localStorage.getItem("canvas_uploader_name");
+        if (savedName) {
+            setUserNickname(savedName);
+        }
         const saved = localStorage.getItem("party_canvas_height");
         if (saved) {
             const num = parseInt(saved, 10);
@@ -62,14 +82,15 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
     const canvasContainerRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Load initial stickers from database (with fallback to localStorage)
+    // Load initial stickers from database (with fallback to localStorage ONLY on network error)
     const loadStickers = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/canvas/stickers");
             const data = await res.json();
-            if (data.success && Array.isArray(data.stickers) && data.stickers.length > 0) {
+            if (data.success && Array.isArray(data.stickers)) {
                 setStickers(data.stickers);
+                localStorage.setItem("party_canvas_stickers", JSON.stringify(data.stickers));
             } else {
                 const local = localStorage.getItem("party_canvas_stickers");
                 if (local) {
@@ -122,8 +143,8 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
         localStorage.setItem("party_canvas_height", "580");
     };
 
-    // Handle Uploading Multiple Files (Batch Upload with Staggered Cascading Coordinates)
-    const handleUploadMultipleFiles = async (files: File[], targetX?: number, targetY?: number) => {
+    // Core upload function with explicit uploader name
+    const executeUploadFiles = async (files: File[], nameToUse: string, targetX?: number, targetY?: number) => {
         if (!files || files.length === 0) return;
         setUploading(true);
 
@@ -150,7 +171,6 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                     const data = await res.json();
 
                     if (res.ok && data.url) {
-                        // Staggered grid calculation so multiple pictures don't stack on top of each other
                         const col = i % 3;
                         const row = Math.floor(i / 3);
                         const offsetX = col * 60 + (i * 30) % 90;
@@ -159,8 +179,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                         const posX = Math.max(20, basePosX + offsetX);
                         const posY = Math.max(20, basePosY + offsetY);
 
-                        // Auto-expand canvas height if photos exceed current height
-                        if (posY + 260 > canvasHeight - 60 && canvasHeight < 2800) {
+                        if (!isMobile && posY + 260 > canvasHeight - 60 && canvasHeight < 2800) {
                             setCanvasHeight((prev) => {
                                 const next = Math.min(prev + 300, 3000);
                                 localStorage.setItem("party_canvas_height", next.toString());
@@ -176,6 +195,7 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                             width: 380,
                             height: 260,
                             description: `Kỷ niệm đêm tiệc ${new Date().toLocaleDateString("vi-VN")}`,
+                            uploaderName: nameToUse,
                             elevation: 5,
                             sheenMode: "sheen",
                             lightingColor: "#60a5fa",
@@ -200,6 +220,38 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
         } finally {
             setUploading(false);
             setStatusMsg("");
+        }
+    };
+
+    // Public Upload Handler: Enforces mandatory Name/Nickname check before uploading
+    const handleUploadMultipleFiles = (files: File[], targetX?: number, targetY?: number) => {
+        if (!files || files.length === 0) return;
+
+        const currentName = userNickname || localStorage.getItem("canvas_uploader_name") || "";
+        if (!currentName.trim()) {
+            setPendingFiles({ files, targetX, targetY });
+            setTempNameInput("");
+            setShowNameModal(true);
+            return;
+        }
+
+        executeUploadFiles(files, currentName.trim(), targetX, targetY);
+    };
+
+    // Handle Confirming Uploader Name in Modal
+    const handleConfirmName = () => {
+        const trimmed = tempNameInput.trim();
+        if (!trimmed) {
+            alert("Vui lòng nhập Tên hoặc Nickname trước khi đăng ảnh!");
+            return;
+        }
+        setUserNickname(trimmed);
+        localStorage.setItem("canvas_uploader_name", trimmed);
+        setShowNameModal(false);
+
+        if (pendingFiles) {
+            executeUploadFiles(pendingFiles.files, trimmed, pendingFiles.targetX, pendingFiles.targetY);
+            setPendingFiles(null);
         }
     };
 
@@ -266,17 +318,39 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
         });
     };
 
-    // Delete a sticker
-    const handleDeleteSticker = async (id: string) => {
-        if (!confirm("Bạn có chắc chắn muốn xóa sticker này khỏi canvas?")) return;
+    // Update width & proportional height of a sticker
+    const handleResizeWidth = (id: string, newWidth: number) => {
         setStickers((prev) => {
-            const updated = prev.filter((s) => s.id !== id);
+            const updated = prev.map((s) => {
+                if (s.id === id) {
+                    const ratio = (s.height && s.width) ? s.height / s.width : 0.68;
+                    const newHeight = Math.max(100, Math.round(newWidth * ratio));
+                    return { ...s, width: newWidth, height: newHeight };
+                }
+                return s;
+            });
             syncToDatabase(updated);
             return updated;
         });
+    };
+
+    // Delete a sticker (deletes from Database & LocalStorage)
+    const handleDeleteSticker = async (id: string) => {
+        if (!confirm("Bạn có chắc chắn muốn xóa sticker này khỏi canvas?")) return;
+
+        // 1. First call DELETE API endpoint to remove from Turso DB & R2
         try {
             await fetch(`/api/canvas/stickers?id=${id}`, { method: "DELETE" });
-        } catch (e) {}
+        } catch (e) {
+            console.error("Delete sticker API error:", e);
+        }
+
+        // 2. Update local state and sync localStorage immediately
+        setStickers((prev) => {
+            const updated = prev.filter((s) => s.id !== id);
+            localStorage.setItem("party_canvas_stickers", JSON.stringify(updated));
+            return updated;
+        });
     };
 
     // Edit description submit
@@ -291,72 +365,104 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
         setEditDescText("");
     };
 
-    // Clear all canvas
-    const handleClearCanvas = () => {
+    // Clear all canvas (deletes all stickers from Database & LocalStorage)
+    const handleClearCanvas = async () => {
         if (!confirm("Bạn có muốn xóa toàn bộ ảnh trên canvas?")) return;
         setStickers([]);
         localStorage.removeItem("party_canvas_stickers");
-        syncToDatabase([]);
+        try {
+            await fetch("/api/canvas/stickers?all=true", { method: "DELETE" });
+        } catch (e) {
+            console.error("Clear all canvas API error:", e);
+        }
     };
 
     return (
         <div
-            className={className || "relative w-full bg-black text-slate-100 flex flex-col overflow-hidden font-sans border border-dashed border-white/10 rounded-2xl transition-all duration-300"}
-            style={{ height: `${canvasHeight}px` }}
+            className={className || "relative w-full bg-black text-slate-100 flex flex-col overflow-hidden font-sans border border-dashed border-white/10 rounded-none transition-all duration-300"}
+            style={isMobile ? {} : { height: `${canvasHeight}px` }}
         >
-            {/* Control Toolbar */}
-            <div className="absolute top-4 right-4 z-40 flex flex-wrap items-center justify-end gap-2 max-w-full px-2">
+            {/* Control Toolbar (Scale 0.8) */}
+            <div className="absolute top-2 right-2 z-40 flex flex-wrap items-center justify-end gap-2 max-w-full px-2 origin-top-right scale-[0.8] sm:scale-[0.9]">
                 <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    multiple
+                    multiple={!isMobile}
                     className="hidden"
                     onChange={onFileSelected}
                 />
 
+                {/* Upload Button: Sharp Box 1x */}
                 <button
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                        const currentName = userNickname || localStorage.getItem("canvas_uploader_name") || "";
+                        if (!currentName.trim()) {
+                            setPendingFiles(null);
+                            setTempNameInput("");
+                            setShowNameModal(true);
+                            return;
+                        }
+                        fileInputRef.current?.click();
+                    }}
                     disabled={uploading}
-                    className="px-4 py-2 rounded-full border border-blue-500/40 text-xs font-semibold uppercase tracking-wider text-white bg-blue-600/20 hover:bg-blue-500 hover:text-white transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-lg shadow-blue-500/10 backdrop-blur-md"
+                    className="px-4 py-2 rounded-none border border-blue-500/50 text-xs font-mono font-bold uppercase tracking-wider text-white bg-blue-950/80 hover:bg-blue-600 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 backdrop-blur-md"
                 >
                     <Upload className="w-3.5 h-3.5" />
-                    <span>{uploading ? (statusMsg || "Đang Upload...") : "Đăng Nhiều Ảnh (+)"}</span>
+                    <span>{uploading ? (statusMsg || "Đang Upload...") : isMobile ? "Đăng Ảnh (+)" : "Đăng Nhiều Ảnh (+)"}</span>
                 </button>
 
-                <button
-                    onClick={() => alert("Mẹo: Chọn cùng lúc nhiều ảnh trong hộp thoại mở file hoặc quét chọn nhiều file để kéo thả vào khung! Bạn cũng có thể dùng Ctrl+V để dán ảnh trực tiếp.")}
-                    className="px-3.5 py-2 rounded-full border border-white/10 text-xs font-medium text-slate-400 bg-white/[0.02] hover:bg-white/10 hover:text-white transition-all flex items-center gap-1.5 backdrop-blur-md"
-                    title="Dán từ Clipboard (Ctrl+V)"
-                >
-                    <Clipboard className="w-3.5 h-3.5" />
-                    <span>Paste (Ctrl+V)</span>
-                </button>
-
-                {/* Expandable Canvas Height Controls */}
-                <button
-                    onClick={() => handleExpandHeight(350)}
-                    className="px-3.5 py-2 rounded-full border border-white/15 text-xs font-medium text-amber-300 bg-amber-500/10 hover:bg-amber-500 hover:text-slate-950 transition-all flex items-center gap-1.5 shadow-sm backdrop-blur-md cursor-pointer"
-                    title="Tăng độ cao không gian canvas để sắp xếp thêm nhiều ảnh"
-                >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>+ Mở Rộng Khung ({canvasHeight}px)</span>
-                </button>
-
-                {canvasHeight > 580 && (
+                {userNickname && (
                     <button
-                        onClick={handleResetHeight}
-                        className="p-2 rounded-full border border-white/10 text-slate-400 hover:text-white hover:bg-white/10 transition-all backdrop-blur-md cursor-pointer"
-                        title="Thu gọn độ cao canvas về 580px"
+                        onClick={() => {
+                            setTempNameInput(userNickname);
+                            setShowNameModal(true);
+                        }}
+                        className="px-2 py-1 text-[11px] font-mono text-amber-400 hover:text-white transition-colors backdrop-blur-md cursor-pointer"
+                        title="Bấm để đổi Tên/Nickname"
                     >
-                        <Minimize2 className="w-3.5 h-3.5" />
+                        [{userNickname}]
                     </button>
+                )}
+
+                {!isMobile && (
+                    <>
+                        {/* Paste Button: Sharp Box 1x */}
+                        <button
+                            onClick={() => alert("Mẹo: Chọn cùng lúc nhiều ảnh trong hộp thoại mở file hoặc quét chọn nhiều file để kéo thả vào khung! Bạn cũng có thể dùng Ctrl+V để dán ảnh trực tiếp.")}
+                            className="px-3.5 py-2 rounded-none border border-white/15 text-xs font-mono text-slate-300 hover:text-white bg-zinc-900/80 hover:bg-zinc-800 transition-all flex items-center gap-1.5 backdrop-blur-md"
+                            title="Dán từ Clipboard (Ctrl+V)"
+                        >
+                            <Clipboard className="w-3.5 h-3.5" />
+                            <span>Paste (Ctrl+V)</span>
+                        </button>
+
+                        {/* Expandable Canvas Height Controls (Desktop only 1x) */}
+                        <button
+                            onClick={() => handleExpandHeight(350)}
+                            className="px-3.5 py-2 rounded-none border border-amber-500/40 text-xs font-mono font-bold text-amber-300 bg-zinc-900/90 hover:bg-amber-500 hover:text-slate-950 transition-all flex items-center gap-1.5 backdrop-blur-md cursor-pointer"
+                            title="Tăng độ cao không gian canvas để sắp xếp thêm nhiều ảnh"
+                        >
+                            <Maximize2 className="w-3.5 h-3.5" />
+                            <span>+ Mở Rộng Khung ({canvasHeight}px)</span>
+                        </button>
+
+                        {canvasHeight > 580 && (
+                            <button
+                                onClick={handleResetHeight}
+                                className="p-2 rounded-none border border-white/15 text-slate-400 hover:text-white hover:bg-zinc-800 transition-all backdrop-blur-md cursor-pointer"
+                                title="Thu gọn độ cao canvas về 580px"
+                            >
+                                <Minimize2 className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </>
                 )}
 
                 {stickers.length > 0 && (
                     <button
                         onClick={handleClearCanvas}
-                        className="p-2 rounded-full border border-white/10 text-slate-500 hover:text-red-400 hover:border-red-500/30 bg-white/[0.02] transition-all backdrop-blur-md cursor-pointer"
+                        className="p-2 rounded-none border border-red-500/30 text-red-400 hover:text-white hover:bg-red-600 bg-zinc-900/80 transition-all backdrop-blur-md cursor-pointer"
                         title="Xóa tất cả ảnh"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -364,90 +470,181 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                 )}
             </div>
 
-            {/* Main Interactive Canvas Area */}
-            <main
-                ref={canvasContainerRef}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                className="relative flex-1 w-full h-full overflow-hidden bg-black cursor-crosshair"
-                onClick={() => setSelectedId(null)}
-            >
-                {/* Empty Canvas Message */}
-                {stickers.length === 0 && !loading && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
-                        <p className="text-slate-400 text-xs tracking-widest font-mono uppercase font-semibold">
-                            {uploading ? (statusMsg || "ĐANG TẢI ẢNH LÊN BUCKET...") : "CHƯA CÓ ẢNH NÀO ĐƯỢC ĐĂNG. HÃY ĐĂNG NHIỀU ẢNH KỶ NIỆM ĐẦU TIÊN!"}
-                        </p>
-                        <p className="text-[11.5px] text-slate-500 font-mono mt-2 max-w-md">
-                            (Bấm <span className="text-blue-400 font-bold">Đăng Nhiều Ảnh</span> để chọn hàng loạt file, kéo thả nhiều ảnh cùng lúc, hoặc bấm <span className="text-amber-400 font-bold">+ Mở Rộng Khung</span> để tăng diện tích lưu giữ)
-                        </p>
-                    </div>
-                )}
+            {/* MAIN CONTENT AREA */}
+            {isMobile ? (
+                /* MOBILE PARTY CANVAS (2 Independent Columns, Fix Width per Column, Height proportional to original image, NO MAX HEIGHT LIMIT) */
+                <div className="w-full flex gap-x-4 p-4 pt-16 pb-16 min-h-[350px]">
+                    {stickers.length === 0 && !loading ? (
+                        <div className="w-full text-center py-12 text-slate-500 text-xs font-mono">
+                            {uploading ? (statusMsg || "Đang tải ảnh lên...") : "Chưa có ảnh nào được đăng trong thư viện."}
+                        </div>
+                    ) : (
+                        <>
+                            {/* Column 1 (Left Independent Column) */}
+                            <div className="flex-1 flex flex-col gap-y-6 min-w-0">
+                                {stickers.filter((_, idx) => idx % 2 === 0).map((sticker) => (
+                                    <div
+                                        key={sticker.id}
+                                        onClick={() => {
+                                            setEditingSticker(sticker);
+                                            setEditDescText(sticker.description || "");
+                                        }}
+                                        className="flex flex-col cursor-pointer group"
+                                    >
+                                        {/* Image: Fix width to column, natural height proportional to original image, NO max height limit */}
+                                        <div className="relative w-full overflow-hidden bg-zinc-900 rounded-none">
+                                            <img
+                                                src={sticker.url}
+                                                alt={sticker.description || "Ảnh khoảnh khắc"}
+                                                className="w-full h-auto object-cover rounded-none block pointer-events-none select-none"
+                                            />
+                                        </div>
 
-                {/* Render WebGL Draggable Stickers */}
-                {stickers.map((sticker) => (
-                    <StickerDrag
-                        key={sticker.id}
-                        id={sticker.id}
-                        image={sticker.url}
-                        imageWidth={sticker.width}
-                        imageHeight={sticker.height}
-                        x={sticker.x}
-                        y={sticker.y}
-                        description={sticker.description}
-                        elevation={sticker.elevation}
-                        sheenMode={sticker.sheenMode}
-                        lightingColor={sticker.lightingColor}
-                        zIndex={sticker.zIndex}
-                        isSelected={selectedId === sticker.id}
-                        onSelect={(id) => setSelectedId(id)}
-                        onPositionChange={handlePositionChange}
-                        onDelete={handleDeleteSticker}
-                        onEditDescription={(id) => {
-                            const found = stickers.find((s) => s.id === id);
-                            if (found) {
-                                setEditingSticker(found);
-                                setEditDescText(found.description || "");
-                            }
-                        }}
-                    />
-                ))}
-            </main>
+                                        {/* Text content directly below image */}
+                                        <div className="mt-2 flex flex-col gap-0.5 min-w-0">
+                                            {/* Line 1: Tên người upload */}
+                                            <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
+                                                {sticker.uploaderName || "Người đăng khoảnh khắc"}
+                                            </h4>
+                                            {/* Line 2: Description */}
+                                            {sticker.description && (
+                                                <p className="text-[11px] sm:text-xs text-slate-400 font-sans font-light leading-snug line-clamp-3">
+                                                    {sticker.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-            {/* Bottom Canvas Footer Info & Height Extender Pill */}
-            <div className="absolute bottom-3 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
-                <div className="text-[11px] font-mono text-slate-500 bg-slate-950/80 px-3 py-1 rounded-full border border-white/10 backdrop-blur-md pointer-events-auto">
-                    {stickers.length} khoảnh khắc • Không gian: {canvasHeight}px
+                            {/* Column 2 (Right Independent Column) */}
+                            <div className="flex-1 flex flex-col gap-y-6 min-w-0">
+                                {stickers.filter((_, idx) => idx % 2 === 1).map((sticker) => (
+                                    <div
+                                        key={sticker.id}
+                                        onClick={() => {
+                                            setEditingSticker(sticker);
+                                            setEditDescText(sticker.description || "");
+                                        }}
+                                        className="flex flex-col cursor-pointer group"
+                                    >
+                                        {/* Image: Fix width to column, natural height proportional to original image, NO max height limit */}
+                                        <div className="relative w-full overflow-hidden bg-zinc-900 rounded-none">
+                                            <img
+                                                src={sticker.url}
+                                                alt={sticker.description || "Ảnh khoảnh khắc"}
+                                                className="w-full h-auto object-cover rounded-none block pointer-events-none select-none"
+                                            />
+                                        </div>
+
+                                        {/* Text content directly below image */}
+                                        <div className="mt-2 flex flex-col gap-0.5 min-w-0">
+                                            {/* Line 1: Tên người upload */}
+                                            <h4 className="font-bold text-white text-xs sm:text-sm font-sans truncate leading-tight">
+                                                {sticker.uploaderName || "Người đăng khoảnh khắc"}
+                                            </h4>
+                                            {/* Line 2: Description */}
+                                            {sticker.description && (
+                                                <p className="text-[11px] sm:text-xs text-slate-400 font-sans font-light leading-snug line-clamp-3">
+                                                    {sticker.description}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
                 </div>
-
-                <button
-                    onClick={() => handleExpandHeight(350)}
-                    className="text-[11px] font-mono font-bold text-amber-300 hover:text-white bg-slate-950/90 hover:bg-amber-500 hover:text-slate-950 px-3 py-1 rounded-full border border-amber-500/30 hover:border-amber-400 transition-all backdrop-blur-md pointer-events-auto flex items-center gap-1.5 cursor-pointer shadow-lg"
+            ) : (
+                /* DESKTOP INTERACTIVE CANVAS AREA */
+                <main
+                    ref={canvasContainerRef}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    className="relative flex-1 w-full h-full overflow-hidden bg-black cursor-crosshair"
+                    onClick={() => setSelectedId(null)}
                 >
-                    <Plus className="w-3 h-3" />
-                    <span>Mở rộng thêm không gian</span>
-                </button>
-            </div>
+                    {/* Empty Canvas Message */}
+                    {stickers.length === 0 && !loading && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none">
+                            <p className="text-slate-400 text-xs tracking-widest font-mono uppercase font-semibold">
+                                {uploading ? (statusMsg || "ĐANG TẢI ẢNH LÊN BUCKET...") : "CHƯA CÓ ẢNH NÀO ĐƯỢC ĐĂNG. HÃY ĐĂNG NHIỀU ẢNH KỶ NIỆM ĐẦU TIÊN!"}
+                            </p>
+                            <p className="text-[11.5px] text-slate-500 font-mono mt-2 max-w-md">
+                                (Bấm <span className="text-blue-400 font-bold">Đăng Nhiều Ảnh</span> để chọn hàng loạt file, kéo thả nhiều ảnh cùng lúc, hoặc bấm <span className="text-amber-400 font-bold">+ Mở Rộng Khung</span> để tăng diện tích lưu giữ)
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Render WebGL Draggable Stickers */}
+                    {stickers.map((sticker) => (
+                        <StickerDrag
+                            key={sticker.id}
+                            id={sticker.id}
+                            image={sticker.url}
+                            imageWidth={sticker.width}
+                            imageHeight={sticker.height}
+                            x={sticker.x}
+                            y={sticker.y}
+                            description={sticker.description}
+                            elevation={sticker.elevation}
+                            sheenMode={sticker.sheenMode}
+                            lightingColor={sticker.lightingColor}
+                            zIndex={sticker.zIndex}
+                            isSelected={selectedId === sticker.id}
+                            onSelect={(id) => setSelectedId(id)}
+                            onPositionChange={handlePositionChange}
+                            onResizeWidth={handleResizeWidth}
+                            onDelete={handleDeleteSticker}
+                            onEditDescription={(id) => {
+                                const found = stickers.find((s) => s.id === id);
+                                if (found) {
+                                    setEditingSticker(found);
+                                    setEditDescText(found.description || "");
+                                }
+                            }}
+                        />
+                    ))}
+                </main>
+            )}
+
+            {/* Bottom Canvas Footer Info & Height Extender Pill (Desktop only) */}
+            {!isMobile && (
+                <div className="absolute bottom-3 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
+                    <div className="text-[11px] font-mono text-slate-400 bg-slate-950/90 px-3 py-1 rounded-none border border-white/15 backdrop-blur-md pointer-events-auto">
+                        {stickers.length} khoảnh khắc • Không gian: {canvasHeight}px
+                    </div>
+
+                    <button
+                        onClick={() => handleExpandHeight(350)}
+                        className="text-[11px] font-mono font-bold text-amber-300 hover:text-white bg-slate-950/90 hover:bg-amber-500 hover:text-slate-950 px-3.5 py-1.5 rounded-none border border-amber-500/40 transition-all backdrop-blur-md pointer-events-auto flex items-center gap-1.5 cursor-pointer shadow-lg"
+                    >
+                        <Plus className="w-3 h-3" />
+                        <span>Mở rộng thêm không gian</span>
+                    </button>
+                </div>
+            )}
 
             {/* Description Edit Modal */}
             {editingSticker && (
-                <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl space-y-4">
+                <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-slate-950 border border-slate-800 rounded-none p-6 w-full max-w-md shadow-2xl space-y-4">
                         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                            <h3 className="text-base font-bold text-amber-300 flex items-center gap-2">
+                            <h3 className="text-base font-bold text-amber-300 font-mono flex items-center gap-2">
                                 <MessageSquare className="w-4 h-4" />
                                 Chỉnh Sửa Mô Tả Khoảnh Khắc
                             </h3>
                             <button
                                 onClick={() => setEditingSticker(null)}
-                                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white"
+                                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-none cursor-pointer"
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
                         <div>
-                            <label className="block text-xs font-medium text-slate-400 mb-1.5">
+                            <label className="block text-xs font-mono text-slate-400 mb-1.5">
                                 Ghi chú / Câu chuyện kỷ niệm đêm tiệc
                             </label>
                             <textarea
@@ -455,22 +652,96 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
                                 onChange={(e) => setEditDescText(e.target.value)}
                                 rows={4}
                                 placeholder="Nhập cảm xúc, tên địa điểm, kỷ niệm gala..."
-                                className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50"
+                                className="w-full rounded-none bg-slate-900 border border-slate-800 p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 font-sans"
                             />
                         </div>
 
-                        <div className="flex items-center justify-end gap-3 pt-2">
+                        <div className="flex items-center justify-between pt-2">
                             <button
-                                onClick={() => setEditingSticker(null)}
-                                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium"
+                                onClick={() => {
+                                    if (editingSticker) {
+                                        const targetId = editingSticker.id;
+                                        setEditingSticker(null);
+                                        handleDeleteSticker(targetId);
+                                    }
+                                }}
+                                className="px-3.5 py-2 rounded-none border border-red-500/40 text-red-400 hover:bg-red-600 hover:text-white text-xs font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                             >
-                                Hủy bỏ
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Xóa Bức Ảnh</span>
+                            </button>
+
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setEditingSticker(null)}
+                                    className="px-4 py-2 rounded-none bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 cursor-pointer"
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    onClick={handleSaveDescription}
+                                    className="px-4 py-2 rounded-none border border-amber-500/50 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs cursor-pointer"
+                                >
+                                    Lưu Mô Tả
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Mandatory Uploader Name/Nickname Modal */}
+            {showNameModal && (
+                <div className="fixed inset-0 z-[60] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-slate-950 border border-amber-500/50 rounded-none p-6 w-full max-w-md shadow-2xl space-y-4 font-sans">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <h3 className="text-base font-bold text-amber-300 font-mono flex items-center gap-2">
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                                Tên / Nickname Của Bạn
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setShowNameModal(false);
+                                    setPendingFiles(null);
+                                }}
+                                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-white rounded-none cursor-pointer"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div>
+                            <p className="text-xs text-slate-300 mb-2.5 font-sans leading-relaxed">
+                                Vui lòng nhập <span className="text-amber-300 font-bold">Tên hoặc Nickname</span> của bạn trước khi đăng ảnh:
+                            </p>
+                            <input
+                                type="text"
+                                value={tempNameInput}
+                                onChange={(e) => setTempNameInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") handleConfirmName();
+                                }}
+                                autoFocus
+                                placeholder="Ví dụ: Hoàng Nam, Minh Tuấn, Alex..."
+                                className="w-full rounded-none bg-slate-900 border border-slate-700 p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 font-sans"
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-end gap-2 pt-2">
+                            <button
+                                onClick={() => {
+                                    setShowNameModal(false);
+                                    setPendingFiles(null);
+                                }}
+                                className="px-4 py-2 rounded-none bg-slate-800 hover:bg-slate-700 text-xs font-mono text-slate-300 cursor-pointer"
+                            >
+                                Hủy
                             </button>
                             <button
-                                onClick={handleSaveDescription}
-                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20"
+                                onClick={handleConfirmName}
+                                className="px-5 py-2 rounded-none border border-amber-500/50 bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs cursor-pointer shadow-lg"
                             >
-                                Lưu Mô Tả
+                                Xác Nhận & Đăng Ảnh
                             </button>
                         </div>
                     </div>

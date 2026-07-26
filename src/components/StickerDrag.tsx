@@ -52,6 +52,7 @@ export interface StickerDragProps {
     onEditDescription?: (id: string) => void;
     onDelete?: (id: string) => void;
     onBringToFront?: (id: string) => void;
+    onResizeWidth?: (id: string, newWidth: number) => void;
 }
 
 const RENDER_SCALE = 2;
@@ -294,6 +295,7 @@ export default function StickerDrag(props: StickerDragProps) {
         onEditDescription,
         onDelete,
         onBringToFront,
+        onResizeWidth,
     } = props;
 
     const tiltSensitivity = DRAG_TILT_SENSITIVITY;
@@ -1076,38 +1078,61 @@ export default function StickerDrag(props: StickerDragProps) {
             {/* Action Bar Floating Controls */}
             {(showControls || isSelected) && (
                 <div
-                    className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md border border-amber-500/40 rounded-full px-3 py-1.5 text-white shadow-2xl z-50 transition-all duration-200"
+                    className="absolute -top-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-950/95 backdrop-blur-md border border-amber-500/50 rounded-none px-3 py-1.5 text-white shadow-2xl z-50 transition-all duration-200"
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
                 >
                     <button
                         onClick={() => onEditDescription?.(id)}
-                        className="p-1 hover:bg-white/10 rounded-full text-amber-300 hover:text-amber-200 transition-colors"
+                        className="p-1 hover:bg-white/10 rounded-none text-amber-300 hover:text-amber-200 transition-colors"
                         title="Chỉnh sửa mô tả"
                     >
                         <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={() => onBringToFront?.(id)}
-                        className="p-1 hover:bg-white/10 rounded-full text-cyan-300 hover:text-cyan-200 transition-colors"
+                        className="p-1 hover:bg-white/10 rounded-none text-cyan-300 hover:text-cyan-200 transition-colors"
                         title="Đưa lên trên cùng"
                     >
                         <ArrowUpRight className="w-3.5 h-3.5" />
                     </button>
                     <button
                         onClick={() => onDelete?.(id)}
-                        className="p-1 hover:bg-red-500/30 rounded-full text-red-400 hover:text-red-300 transition-colors"
+                        className="p-1 hover:bg-red-500/30 rounded-none text-red-400 hover:text-red-300 transition-colors"
                         title="Xóa sticker"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
+
+                    {/* Desktop Width Controls: shrink & enlarge width freely */}
+                    {onResizeWidth && (
+                        <div className="flex items-center gap-1 border-l border-white/20 pl-2 ml-1">
+                            <button
+                                onClick={() => onResizeWidth(id, Math.max(140, Math.round(imageWidth - 40)))}
+                                className="px-1.5 py-0.5 hover:bg-amber-500/20 rounded-none text-amber-300 hover:text-amber-200 text-xs font-mono font-bold transition-colors cursor-pointer"
+                                title="Thu nhỏ chiều rộng (-40px)"
+                            >
+                                -W
+                            </button>
+                            <span className="text-[10px] font-mono text-slate-300 min-w-[38px] text-center">
+                                {imageWidth}px
+                            </span>
+                            <button
+                                onClick={() => onResizeWidth(id, Math.min(1000, Math.round(imageWidth + 40)))}
+                                className="px-1.5 py-0.5 hover:bg-amber-500/20 rounded-none text-amber-300 hover:text-amber-200 text-xs font-mono font-bold transition-colors cursor-pointer"
+                                title="Phóng lớn chiều rộng (+40px)"
+                            >
+                                +W
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Floating Description Badge / Tape note */}
             {description && (
                 <div
-                    className="absolute -bottom-8 left-1/2 -translate-x-1/2 max-w-[260px] truncate bg-amber-950/80 border border-amber-500/40 text-amber-100 text-xs px-3 py-1 rounded-md shadow-lg backdrop-blur-sm flex items-center gap-1.5 cursor-pointer hover:max-w-none hover:whitespace-normal hover:z-50 transition-all"
+                    className="absolute -bottom-8 left-1/2 -translate-x-1/2 max-w-[260px] truncate bg-amber-950/90 border border-amber-500/40 text-amber-100 text-xs px-3 py-1 rounded-none font-mono backdrop-blur-sm flex items-center gap-1.5 cursor-pointer hover:max-w-none hover:whitespace-normal hover:z-50 transition-all"
                     onClick={() => onEditDescription?.(id)}
                     title={description}
                 >

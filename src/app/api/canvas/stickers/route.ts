@@ -20,6 +20,7 @@ export async function GET() {
       width: Number(row.width),
       height: Number(row.height),
       description: row.description ? String(row.description) : '',
+      uploaderName: row.uploader_name ? String(row.uploader_name) : '',
       elevation: Number(row.elevation ?? 10),
       sheenMode: String(row.sheen_mode ?? 'sheen'),
       lightingColor: String(row.lighting_color ?? '#ffffff'),
@@ -48,8 +49,8 @@ export async function POST(request: Request) {
 
       await db.execute({
         sql: `INSERT INTO party_canvas_stickers (
-          id, url, x, y, width, height, description, elevation, sheen_mode, lighting_color, z_index, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+          id, url, x, y, width, height, description, uploader_name, elevation, sheen_mode, lighting_color, z_index, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
           url = excluded.url,
           x = excluded.x,
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
           width = excluded.width,
           height = excluded.height,
           description = excluded.description,
+          uploader_name = excluded.uploader_name,
           elevation = excluded.elevation,
           sheen_mode = excluded.sheen_mode,
           lighting_color = excluded.lighting_color,
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
           item.width ?? 400,
           item.height ?? 300,
           item.description ?? '',
+          item.uploaderName ?? '',
           item.elevation ?? 10,
           item.sheenMode ?? 'sheen',
           item.lightingColor ?? '#ffffff',
@@ -91,6 +94,15 @@ export async function DELETE(request: Request) {
     const db = getTursoClient();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const isAll = searchParams.get('all') === 'true';
+
+    if (isAll) {
+      await db.execute({
+        sql: `DELETE FROM party_canvas_stickers`,
+        args: [],
+      });
+      return NextResponse.json({ success: true, message: 'Đã xóa tất cả sticker' });
+    }
 
     if (!id) {
       return NextResponse.json({ error: 'Thiếu ID sticker' }, { status: 400 });

@@ -562,7 +562,7 @@ export default function App() {
             </div>
 
             {/* Embedded Interactive WebGL Party Canvas */}
-            <PartyCanvas className="w-full min-h-[500px] bg-black text-slate-100 flex flex-col overflow-hidden font-sans border border-dashed border-white/10 rounded-2xl relative transition-all duration-300" />
+            <PartyCanvas className="w-full min-h-[500px] bg-black text-slate-100 flex flex-col overflow-hidden font-sans border border-dashed border-white/10 rounded-none relative transition-all duration-300" />
           </div>
         </div>
 

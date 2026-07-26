@@ -2,6 +2,7 @@ export interface MarqueeImage {
   id: string;
   url: string;
   title: string;
+  uploaderName?: string;
   date: string;
   location: string;
   category: string;

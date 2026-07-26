@@ -125,14 +125,17 @@ export default function App() {
           }
 
           // --- Home section opacity: direct DOM (no React re-render) ---
-          if (scrollVh > HOME_HIDE_THRESHOLD && homeVisibleRef.current) {
+          const currentHideThreshold = isMobile ? HOME_HIDE_THRESHOLD + 0.4 : HOME_HIDE_THRESHOLD;
+          const currentShowThreshold = isMobile ? HOME_SHOW_THRESHOLD + 0.4 : HOME_SHOW_THRESHOLD;
+
+          if (scrollVh > currentHideThreshold && homeVisibleRef.current) {
             homeVisibleRef.current = false;
             if (homeSectionRef.current) {
               homeSectionRef.current.style.opacity = '0';
               homeSectionRef.current.style.visibility = 'hidden';
               homeSectionRef.current.style.pointerEvents = 'none';
             }
-          } else if (scrollVh < HOME_SHOW_THRESHOLD && !homeVisibleRef.current) {
+          } else if (scrollVh < currentShowThreshold && !homeVisibleRef.current) {
             homeVisibleRef.current = true;
             if (homeSectionRef.current) {
               homeSectionRef.current.style.opacity = '1';

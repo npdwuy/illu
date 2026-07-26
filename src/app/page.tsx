@@ -388,9 +388,9 @@ export default function App() {
                 style={{ willChange: 'transform' }}
               >
                 {/* Expanded Hero Content Box */}
-                <div className="w-full px-5 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 z-10 pt-4 md:py-12 translate-y-0 md:-translate-y-16">
+                <div className="w-full px-[20px] z-10 pt-4 md:py-12 translate-y-0 md:-translate-y-16">
                   {/* TÙY CHỈNH KHOẢNG CÁCH GAP TRÊN/DƯỚI CHÍNH: Thay space-y-6 thành space-y-8, space-y-10, space-y-12,... */}
-                  <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
+                  <div className="max-w-4xl mx-auto md:mx-0 space-y-4 md:space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
                     {/* TÙY CHỈNH KHOẢNG CÁCH GIỮA CÁC DÒNG TIÊU ĐỀ & CÂU KHẨU HIỆU: Thay space-y-2 thành space-y-3, space-y-4,... */}
                     <div ref={titleContainerRef} style={{ willChange: "transform" }} className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full">
                       <span className="text-xs sm:text-base md:text-lg font-semibold tracking-[0.25em] md:tracking-[0.35em] text-white/80 uppercase block font-condensed mb-1 md:mb-2 text-center md:text-left w-full">

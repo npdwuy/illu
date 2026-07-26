@@ -422,12 +422,12 @@ export default function App() {
       {/* NATIVE SCROLL PINNING CONTAINER FOR HOME */}
       <div className="relative w-full" style={HOME_TRACK_HEIGHT_STYLE}>
         {/* 1. HERO SECTION (ID: home) */}
-        <div className="w-full h-[178vw] md:h-[100dvh] sticky top-0 z-10 pointer-events-none">
+        <div className="w-full h-[196vw] md:h-[100dvh] sticky top-0 z-10 pointer-events-none">
           <div className="absolute inset-0 pointer-events-auto">
             <section
               id="home"
               ref={homeSectionRef}
-              className="w-full h-full min-h-[178vw] md:min-h-[100dvh] flex flex-col justify-start md:justify-center overflow-hidden pt-16 md:pt-20"
+              className="w-full h-full min-h-[196vw] md:min-h-[100dvh] flex flex-col justify-start md:justify-center overflow-hidden pt-16 md:pt-20"
               style={{ opacity: '1', pointerEvents: 'auto', transition: 'opacity 0.4s ease-out' }}
             >
               <div

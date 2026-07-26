@@ -69,6 +69,13 @@ export default function MasterClock() {
   const [isIntroFinished, setIsIntroFinished] = useState(false);
 
   useEffect(() => {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (isMobile) {
+      setIntroElapsedSec(TOTAL_INTRO_DURATION_SEC);
+      setIsIntroFinished(true);
+      return;
+    }
+
     let startTime: number | null = null;
     let lastRenderTime = 0;
     let animFrame: number;
@@ -130,7 +137,7 @@ export default function MasterClock() {
   const currentHourAngle = ((9 + introMinuteCount / 60) * 30 - 90) % 360;
 
   return (
-    <div className="absolute top-0 right-0 h-full pointer-events-none z-0 opacity-100 select-none overflow-hidden">
+    <div className="absolute bottom-0 right-0 md:left-auto md:top-0 md:right-0 h-[43vh] sm:h-[52vh] md:h-full w-[100vw] sm:w-[100vw] md:w-auto pointer-events-none z-0 opacity-100 select-none overflow-visible md:overflow-hidden flex items-end justify-end">
       <div ref={masterClockRef} className="relative h-full aspect-[1440/810] flex items-end justify-end overflow-visible">
         {/* Layer 1: Nền SVG Clock chính */}
         <NextImage
@@ -187,7 +194,7 @@ export default function MasterClock() {
         </svg>
 
         {/* Layer 3: Đồng hồ 2 Kim xoay bên phải */}
-        <div className="absolute top-[78.5%] left-[93.5%] -translate-x-1/2 -translate-y-1/2 w-[47%] aspect-square flex items-center justify-center pointer-events-auto hidden sm:flex z-3 rotate-[-5]">
+        <div className="absolute top-[78.5%] left-[93.5%] -translate-x-1/2 -translate-y-1/2 w-[47%] aspect-square flex items-center justify-center pointer-events-auto flex z-3 rotate-[-5]">
           <GradientClock
             size="100%"
             showDialBackground={false}
@@ -223,7 +230,7 @@ export default function MasterClock() {
         </div>
 
         {/* Layer 5: Đồng hồ 2 Kim xoay bên trái */}
-        <div className="absolute top-[103.5%] left-[60%] -translate-x-1/2 -translate-y-1/2 w-[45%] aspect-square flex items-center justify-center pointer-events-auto hidden sm:flex z-5 rotate-96">
+        <div className="absolute top-[103.5%] left-[60%] -translate-x-1/2 -translate-y-1/2 w-[45%] aspect-square flex items-center justify-center pointer-events-auto flex z-5 rotate-96">
           <GradientClock
             size="100%"
             showDialBackground={false}

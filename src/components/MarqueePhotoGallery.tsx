@@ -210,7 +210,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
 
   if (rowItems.length === 0) {
     return (
-      <div className="relative w-full h-[calc(22vh+15px)] min-h-[175px] bg-slate-950/20 border border-dashed border-white/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
+      <div className="relative w-full h-[calc(17.6vh+12px)] min-h-[140px] lg:h-[calc(22vh+15px)] lg:min-h-[175px] bg-slate-950/20 border border-dashed border-white/5 rounded-xl flex flex-col items-center justify-center text-center p-4">
         <p className="text-xs text-slate-500 font-mono">Hàng trống (Row {isEven ? 'chẵn' : 'lẻ'})</p>
         <p className="text-[10px] text-slate-600 font-mono mt-1">Sử dụng Library Editor ở góc phải để tải ảnh lên hàng này</p>
       </div>
@@ -218,7 +218,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
   }
 
   return (
-    <div className="relative w-full overflow-hidden h-[calc(22vh+15px)] min-h-[175px] bg-slate-950/40">
+    <div className="relative w-full overflow-hidden h-[calc(17.6vh+12px)] min-h-[140px] lg:h-[calc(22vh+15px)] lg:min-h-[175px] bg-slate-950/40">
       <div
         ref={trackRef}
         className="flex gap-2 items-center h-full w-max cursor-grab active:cursor-grabbing select-none"
@@ -371,6 +371,15 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
   const startResizeRatioRef = useRef<number>(0.32);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   // Drag-to-scroll references for timeline year navigation
   const timelineNavRef = useRef<HTMLDivElement | null>(null);
   const isTimelineDraggingRef = useRef<boolean>(false);
@@ -378,8 +387,8 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
   const timelineScrollLeftRef = useRef<number>(0);
   const timelineHasDraggedRef = useRef<boolean>(false);
 
-  // Use server-provided rows strictly as the single source of truth
-  const sourceRows: MarqueeImage[][] = externalRows || [];
+  // Use server-provided rows strictly as the single source of truth, fallback to 3 empty rows to prevent layout collapse
+  const sourceRows: MarqueeImage[][] = (externalRows && externalRows.length > 0) ? externalRows : [[], [], []];
 
   // Preload all marquee detail images in background after mount
   useEffect(() => {
@@ -498,15 +507,15 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
       {/* SECTION HEADER & MINIMALIST INLINE TIMELINE */}
       <div className="max-w-[1400px] w-full mx-auto px-6 pt-[24px] pb-2 border-b border-white/10 mb-3 shrink-0">
 
-        {/* Top Row: Title and Timeline EXACTLY on the same horizontal axis */}
-        <div className="flex flex-row items-center justify-between gap-6 md:gap-10 w-full">
+        {/* Stacking Title and Timeline horizontally on desktop but stacked on mobile or everywhere */}
+        <div className="flex flex-col items-start gap-3 w-full">
           {/* Left Title */}
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-serif text-white tracking-tight font-bold shrink-0">
+          <h2 className="text-xl md:text-[24px] lg:text-[29px] font-serif text-white tracking-tight font-bold shrink-0">
             Hành trình 10 năm
           </h2>
 
-          {/* Right Horizontal Minimalist Timeline (Line + Text, No Boxes) - Drag to Scroll, Hidden Scrollbar */}
-          <div className="flex-1 overflow-hidden">
+          {/* Horizontal Minimalist Timeline (Line + Text, No Boxes) - Drag to Scroll, Hidden Scrollbar */}
+          <div className="w-full overflow-hidden">
             <div
               ref={timelineNavRef}
               onPointerDown={handleTimelinePointerDown}
@@ -551,12 +560,18 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
       {/* DYNAMIC REFLOW CONTAINER (Left Panel + Right Gallery) */}
       <div
         ref={containerRef}
-        className="relative flex-1 flex flex-col lg:flex-row w-full items-stretch overflow-hidden mb-3"
-        style={{
-          height: "calc(66vh + 61px)",
-          minHeight: "541px",
-          maxHeight: "calc(66vh + 61px)",
-        }}
+        className={`relative flex-1 flex flex-col lg:flex-row w-full items-stretch mb-3 ${
+          isMobile ? "h-auto overflow-visible" : "overflow-hidden"
+        }`}
+        style={
+          isMobile
+            ? {}
+            : {
+                height: "calc(66vh + 61px)",
+                minHeight: "541px",
+                maxHeight: "calc(66vh + 61px)",
+              }
+        }
       >
 
         {/* ================= LEFT DETAIL PANEL (Dynamic Smooth Scaling 0.25 to 0.45 Width) ================= */}
@@ -564,17 +579,19 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
           {selectedImage && (
             <motion.aside
               key="detail-panel-container"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{
-                width: `${panelWidthRatio * 100}%`,
-                opacity: 1
-              }}
-              exit={{ width: 0, opacity: 0 }}
+              initial={isMobile ? { height: 0, opacity: 0 } : { width: 0, opacity: 0 }}
+              animate={
+                isMobile
+                  ? { height: "auto", width: "100%", opacity: 1 }
+                  : { width: `${panelWidthRatio * 100}%`, height: "100%", opacity: 1 }
+              }
+              exit={isMobile ? { height: 0, opacity: 0 } : { width: 0, opacity: 0 }}
               transition={{
-                width: { duration: isResizingRef.current ? 0 : 0.2, ease: "easeOut" },
+                width: { duration: (!isMobile && isResizingRef.current) ? 0 : 0.2, ease: "easeOut" },
+                height: { duration: 0.2, ease: "easeOut" },
                 opacity: { duration: 0.15 }
               }}
-              className="shrink-0 border-r border-slate-800 bg-slate-950 flex flex-col justify-between relative overflow-hidden z-30 shadow-2xl min-w-0 h-full max-h-full"
+              className="shrink-0 border-b lg:border-b-0 lg:border-r border-slate-800 bg-slate-950 flex flex-col justify-between relative overflow-hidden z-30 shadow-2xl min-w-0 h-auto lg:h-full max-h-full"
             >
               {/* Refined Minimalist Splitter Grip Bar (25% <-> 45% Page Width) */}
               <div
@@ -583,7 +600,7 @@ export default function MarqueePhotoGallery({ externalRows }: { externalRows?: M
                 onPointerUp={handleSplitterUp}
                 onPointerCancel={handleSplitterUp}
                 title="Kéo ngang để thay đổi kích thước"
-                className="absolute right-0 top-0 bottom-0 w-2.5 bg-slate-950/60 hover:bg-blue-600/20 active:bg-blue-500/30 border-l border-white/10 hover:border-blue-500/40 cursor-ew-resize flex items-center justify-center group z-40 transition-all backdrop-blur-sm"
+                className="absolute right-0 top-0 bottom-0 w-2.5 bg-slate-950/60 hover:bg-blue-600/20 active:bg-blue-500/30 border-l border-white/10 hover:border-blue-500/40 cursor-ew-resize hidden lg:flex items-center justify-center group z-40 transition-all backdrop-blur-sm"
               >
                 {/* Minimalist Drag Pill Handle */}
                 <div className="w-1 h-12 bg-slate-700/80 group-hover:bg-blue-400 group-active:bg-white rounded-full transition-all duration-300 group-hover:h-16 group-hover:shadow-[0_0_12px_rgba(59,130,246,0.6)]" />

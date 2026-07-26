@@ -52,6 +52,9 @@ export default function App() {
   const taglineRef = useRef<HTMLParagraphElement>(null);
   const timeBlockRef = useRef<HTMLDivElement>(null);
   const locationBlockRef = useRef<HTMLAnchorElement>(null);
+  const titleContainerRef = useRef<HTMLDivElement>(null);
+  const buttonsRowRef = useRef<HTMLDivElement>(null);
+  const isMobileRef = useRef<boolean>(false);
 
   // Parallax config — static constants, never change at runtime
   // Track height formula: 100 + freezeVh*100 + 20  (from useScrollParallax default)
@@ -70,13 +73,28 @@ export default function App() {
   // Scroll animation: use refs + direct DOM mutations to avoid React re-render on every scroll frame
   const homeVisibleRef = useRef(true);
   const showTaglineRef = useRef(false);
+  const showButtonsRef = useRef(false);
   const showTimeRef = useRef(false);
   const showLocationRef = useRef(false);
 
   const activeTabRef = useRef(activeTab);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hasLoadedBefore = sessionStorage.getItem('has_loaded_before');
+      if (!hasLoadedBefore) {
+        window.scrollTo(0, 0);
+        sessionStorage.setItem('has_loaded_before', 'true');
+      }
+    }
+
     let ticking = false;
+
+    const handleResize = () => {
+      isMobileRef.current = window.innerWidth < 768;
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
 
     const applyClass = (el: HTMLElement | null, add: boolean, shown: string, hidden: string) => {
       if (!el) return;
@@ -92,6 +110,7 @@ export default function App() {
           const sy = window.scrollY;
           const vh = window.innerHeight || 1;
           const scrollVh = sy / vh;
+          const isMobile = isMobileRef.current;
 
           // --- Parallax: both computed and applied in same frame (no competing loops) ---
           const homeResult = computeParallax(sy, vh, homeParallaxConfig);
@@ -119,13 +138,29 @@ export default function App() {
             }
           }
 
+          // Mobile Title translation (removed as per user request to keep title static)
+          if (titleContainerRef.current) {
+            titleContainerRef.current.style.transform = 'none';
+          }
+
           // --- Stagger reveal: direct classList toggle (no React re-render) ---
-          const newTagline = sy > 40;
-          const newTime = sy > 120;
-          const newLocation = sy > 200;
+          const taglineThreshold = isMobile ? 45 : 40;
+          const buttonsThreshold = isMobile ? 45 : 40;
+          const timeThreshold = isMobile ? 120 : 120;
+          const locationThreshold = isMobile ? 120 : 200;
+
+          const newTagline = sy > taglineThreshold;
+          const newButtons = sy > buttonsThreshold;
+          const newTime = sy > timeThreshold;
+          const newLocation = sy > locationThreshold;
+
           if (newTagline !== showTaglineRef.current) {
             showTaglineRef.current = newTagline;
             applyClass(taglineRef.current, newTagline, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+          }
+          if (newButtons !== showButtonsRef.current) {
+            showButtonsRef.current = newButtons;
+            applyClass(buttonsRowRef.current, newButtons, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
           }
           if (newTime !== showTimeRef.current) {
             showTimeRef.current = newTime;
@@ -136,14 +171,18 @@ export default function App() {
             applyClass(locationBlockRef.current, newLocation, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
           }
 
-          // --- Active Tab: only fires setState when tab actually changes ---
+          // --- Active Tab: dynamically determined based on scroll position & gallery top ---
           const galleryEl = document.getElementById('gallery');
-          const galleryTop = galleryEl ? galleryEl.offsetTop - sy : Infinity;
+          const galleryTop = galleryEl ? galleryEl.getBoundingClientRect().top : Infinity;
 
           let newTab: string;
-          if (sy < vh * 1.2) newTab = 'home';
-          else if (galleryTop <= vh * 0.45) newTab = 'gallery';
-          else newTab = 'timeline';
+          if (sy < vh * 1.2) {
+            newTab = 'home';
+          } else if (galleryTop <= vh * 0.5) {
+            newTab = 'gallery';
+          } else {
+            newTab = 'timeline';
+          }
 
           if (activeTabRef.current !== newTab) {
             activeTabRef.current = newTab;
@@ -159,7 +198,10 @@ export default function App() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll(); // initial trigger
 
-    return () => window.removeEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Disable Zoom in/out via Keyboard Shortcuts, Mouse Wheel, and Touch Gestures
@@ -210,47 +252,45 @@ export default function App() {
     };
   }, []);
 
-  // Smooth Navigation Handler compatible with Native Scroll
+  // Smooth Navigation Handler compatible with Native Scroll & Parallax
   const handleNavClick = (targetId: string, e: React.MouseEvent) => {
     e.preventDefault();
     setActiveTab(targetId);
 
     if (targetId === 'home') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (targetId === 'timeline') {
-      window.scrollTo({ top: window.innerHeight * ((HOME_TRACK_HEIGHT_VH / 100) + 0.1), behavior: 'smooth' });
-    } else {
+    } else if (targetId === 'timeline' || targetId === 'gallery') {
       const el = document.getElementById(targetId);
       if (el) {
+        const vh = window.innerHeight;
         const headerOffset = 56;
-        const elementPosition = el.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.scrollY - headerOffset;
-        window.scrollTo({ top: offsetPosition, behavior: 'smooth' });
+        const docTop = vh * (HOME_TRACK_HEIGHT_VH / 100);
+        const freezeStart = TIMELINE_FREEZE_VH * vh;
+        const speed = 0.5;
+        const maxParallax = 320;
+
+        const timelineEl = timelineRef.current;
+        let relativeOffsetTop = 0;
+        if (timelineEl) {
+          let current: HTMLElement | null = el;
+          while (current && current !== timelineEl) {
+            relativeOffsetTop += current.offsetTop;
+            current = current.offsetParent as HTMLElement | null;
+          }
+        }
+
+        const staticOffsetTop = docTop + relativeOffsetTop;
+
+        const syCapped = staticOffsetTop - maxParallax - headerOffset;
+        const syUncapped = (staticOffsetTop + speed * freezeStart - headerOffset) / (1 + speed);
+
+        const timelineTargetParallax = (syUncapped - freezeStart) * speed;
+        const targetScroll = timelineTargetParallax > maxParallax ? syCapped : syUncapped;
+
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
       }
     }
   };
-
-  // Auto-sync activeTab for Gallery section using IntersectionObserver
-  useEffect(() => {
-    const handleIntersect: IntersectionObserverCallback = (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveTab(entry.target.id);
-        }
-      });
-    };
-
-    const observer = new IntersectionObserver(handleIntersect, {
-      root: null,
-      rootMargin: '-20% 0px -60% 0px',
-      threshold: 0,
-    });
-
-    const galleryEl = document.getElementById('gallery');
-    if (galleryEl) observer.observe(galleryEl);
-
-    return () => observer.disconnect();
-  }, []);
 
   // Component states
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -258,36 +298,7 @@ export default function App() {
   useEffect(() => {
     // Load marquee rows from server on mount
     fetchMarqueeData();
-
-    // IntersectionObserver to highlight current active section while scrolling
-    const sections = ['home', 'timeline', 'gallery'];
-    const observerOptions = {
-      root: null,
-      rootMargin: '-30% 0px -60% 0px', // Trigger when section occupies the sweet middle spot of viewport
-      threshold: 0
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveTab(entry.target.id);
-        }
-      });
-    }, observerOptions);
-
-    sections.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) observer.observe(el);
-    });
-
-    return () => {
-      sections.forEach((id) => {
-        const el = document.getElementById(id);
-        if (el) observer.unobserve(el);
-      });
-    };
   }, []);
-
 
 
 
@@ -304,25 +315,25 @@ export default function App() {
 
       {/* HEADER */}
       <header className="fixed top-0 left-0 right-0 z-40 bg-black/60 backdrop-blur-md border-b border-white/[0.04]">
-        <div className="w-full pl-4 pr-6 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 h-14 flex items-center justify-between">
+        <div className="w-full px-4 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 h-14 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <NextImage
               src="/illu-logo.png"
               alt="Illustris Logo"
               width={64}
               height={45}
-              className="h-9 w-auto object-contain"
+              className="h-[22px] sm:h-9 w-auto object-contain"
               priority
             />
             <div>
-              <span className="font-perandory text-xl tracking-[0.15em] text-white block leading-none">ILLUSTRIS</span>
-              <span className="text-[8px] text-slate-400 tracking-[0.3em] uppercase font-light block mt-1 font-condensed">Photography Club</span>
+              <span className="font-perandory text-lg sm:text-xl tracking-[0.15em] text-white block leading-none">ILLUSTRIS</span>
+              <span className="text-[7px] sm:text-[8px] text-slate-400 tracking-[0.25em] sm:tracking-[0.3em] uppercase font-light block mt-0.5 sm:mt-1 font-condensed">Photography Club</span>
             </div>
           </div>
 
           {/* Navigation with smooth anchors */}
-          <nav className="flex items-center gap-8 md:gap-12 text-[17px] tracking-[0.12em] uppercase font-semibold text-slate-400 font-condensed">
+          <nav className="flex items-center gap-3 sm:gap-8 md:gap-12 text-[10px] sm:text-[17px] tracking-[0.08em] sm:tracking-[0.12em] uppercase font-semibold text-slate-400 font-condensed">
             <a
               href="#home"
               onClick={(e) => handleNavClick('home', e)}
@@ -365,27 +376,27 @@ export default function App() {
             <section
               id="home"
               ref={homeSectionRef}
-              className="w-full h-full flex flex-col justify-center overflow-hidden pt-20"
+              className="w-full h-full flex flex-col justify-start md:justify-center overflow-hidden pt-16 md:pt-20"
               style={{ opacity: '1', pointerEvents: 'auto', willChange: 'opacity' }}
             >
               <div
                 ref={homeRef}
-                className="w-full h-full flex flex-col justify-center relative"
+                className="w-full h-full flex flex-col justify-start md:justify-center relative"
                 style={{ willChange: 'transform' }}
               >
                 {/* Expanded Hero Content Box */}
-                <div className="w-full pl-4 pr-6 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 z-10 py-12 -translate-y-10 md:-translate-y-16">
+                <div className="w-full px-5 sm:pl-6 sm:pr-12 lg:pl-8 lg:pr-20 z-10 pt-4 md:py-12 translate-y-0 md:-translate-y-16">
                   {/* TÙY CHỈNH KHOẢNG CÁCH GAP TRÊN/DƯỚI CHÍNH: Thay space-y-6 thành space-y-8, space-y-10, space-y-12,... */}
-                  <div className="max-w-4xl space-y-6">
+                  <div className="max-w-4xl mx-auto space-y-4 md:space-y-6 flex flex-col items-center md:items-start text-center md:text-left">
                     {/* TÙY CHỈNH KHOẢNG CÁCH GIỮA CÁC DÒNG TIÊU ĐỀ & CÂU KHẨU HIỆU: Thay space-y-2 thành space-y-3, space-y-4,... */}
-                    <div className="space-y-2">
-                      <span className="text-base md:text-lg font-semibold tracking-[0.35em] text-white/80 uppercase block font-condensed mb-2">
+                    <div ref={titleContainerRef} style={{ willChange: "transform" }} className="space-y-1.5 md:space-y-2 flex flex-col items-center md:items-start w-full">
+                      <span className="text-xs sm:text-base md:text-lg font-semibold tracking-[0.25em] md:tracking-[0.35em] text-white/80 uppercase block font-condensed mb-1 md:mb-2 text-center md:text-left w-full">
                         KỶ NIỆM 10 NĂM THÀNH LẬP
                       </span>
-                      <h1 className="text-7xl md:text-[120px] font-perandory tracking-wide leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#0a08b6] via-[#46c2ff] to-white drop-shadow-[0_10px_25px_rgba(10,8,182,0.35)] -mb-1">
+                      <h1 className="text-7xl sm:text-[108px] md:text-[180px] font-perandory tracking-wide leading-none text-transparent bg-clip-text bg-gradient-to-b from-[#0a08b6] via-[#46c2ff] to-white drop-shadow-[0_10px_25px_rgba(10,8,182,0.35)] -mb-1 text-center md:text-left w-full">
                         ILLUSTRIS
                       </h1>
-                      <h2 className="text-sm md:text-base font-medium tracking-[0.25em] text-white/75 uppercase leading-none font-condensed flex items-center pt-1">
+                      <h2 className="text-xs sm:text-sm md:text-base font-medium tracking-[0.2em] md:tracking-[0.25em] text-white/75 uppercase leading-none font-condensed flex items-center justify-center md:justify-start pt-0.5 md:pt-1 w-full pl-[5px]">
                         <Typewriter
                           texts={[
                             "  10 NĂM",
@@ -401,23 +412,23 @@ export default function App() {
                           cursorColor="rgba(255, 255, 255, 0.85)"
                         />
                       </h2>
-                      {/* NHIẾP ẢNH CHỨ? */}
-                      <p
-                        ref={taglineRef}
-                        className="font-serif text-xl md:text-2xl italic font-normal text-white/80 tracking-wide pt-1 transition-all duration-700 ease-out opacity-0 translate-y-7"
-                      >
-                        NHIẾP ẢNH CHỨ?
-                      </p>
                     </div>
+                    {/* NHIẾP ẢNH CHỨ? */}
+                    <p
+                      ref={taglineRef}
+                      className="font-serif text-lg sm:text-xl md:text-2xl italic font-normal text-white/80 tracking-wide pt-1 transition-all duration-700 ease-out opacity-0 translate-y-7 text-center md:text-left w-full"
+                    >
+                      NHIẾP ẢNH CHỨ?
+                    </p>
 
                     {/* Event Info */}
-                    <div className="flex flex-row items-start gap-12 md:gap-16 pt-6 mt-6 select-none">
+                    <div className="flex flex-row md:flex-row items-start justify-between md:justify-start w-full max-w-lg md:max-w-none gap-4 sm:gap-12 md:gap-16 pt-4 md:pt-6 mt-2 md:mt-6 select-none text-left">
                       {/* Time */}
                       <div
                         ref={timeBlockRef}
-                        className="flex gap-4.5 items-start transition-all duration-700 delay-100 ease-out opacity-0 translate-y-7"
+                        className="flex gap-2.5 sm:gap-4.5 items-start transition-all duration-700 delay-100 ease-out opacity-0 translate-y-7 shrink-0 pl-6 sm:pl-0"
                       >
-                        <svg viewBox="0 0 32 32" className="w-[38px] h-[38px] md:w-[44px] md:h-[44px] text-[#5d66d0] shrink-0 mt-0.5" fill="none" stroke="currentColor">
+                        <svg viewBox="0 0 32 32" className="w-[28px] h-[28px] sm:w-[38px] sm:h-[38px] md:w-[44px] md:h-[44px] text-[#5d66d0] shrink-0 mt-0.5" fill="none" stroke="currentColor">
                           <rect x="3" y="6" width="26" height="22" rx="4" strokeWidth="1.8" />
                           <path d="M8 3v4M16 3v4M24 3v4" strokeWidth="1.8" strokeLinecap="round" />
                           <path d="M3 12h26" strokeWidth="1.5" />
@@ -429,10 +440,10 @@ export default function App() {
                           <circle cx="21" cy="23" r="1" fill="currentColor" />
                           <circle cx="26" cy="23" r="1" fill="currentColor" opacity="0.6" />
                         </svg>
-                        <div className="space-y-1.5 min-w-0 font-condensed">
-                          <span className="text-[14.5px] text-white tracking-[0.25em] font-medium uppercase block">THỜI GIAN</span>
-                          <p className="text-lg md:text-xl font-medium text-[#5d66d0] leading-tight font-sans">26.07.2026</p>
-                          <p className="text-sm md:text-base text-[#5d66d0] font-normal font-sans">16:30 - 19:45</p>
+                        <div className="space-y-0.5 sm:space-y-1.5 min-w-0 font-condensed">
+                          <span className="text-[10px] sm:text-[14.5px] text-white tracking-[0.2em] sm:tracking-[0.25em] font-medium uppercase block">THỜI GIAN</span>
+                          <p className="text-sm sm:text-lg md:text-xl font-medium text-[#5d66d0] leading-tight font-sans">26.07.2026</p>
+                          <p className="text-[11px] sm:text-sm md:text-base text-[#5d66d0] font-normal font-sans">16:30 - 19:45</p>
                         </div>
                       </div>
 
@@ -443,9 +454,9 @@ export default function App() {
                         target="_blank"
                         rel="noopener noreferrer"
                         title="Mở vị trí Bamos Trần Não trên Google Maps"
-                        className="group flex gap-4.5 items-start max-w-[265px] transition-all duration-700 delay-200 ease-out cursor-pointer pointer-events-auto opacity-0 translate-y-7"
+                        className="group flex gap-2.5 sm:gap-4.5 items-start max-w-[170px] sm:max-w-[265px] transition-all duration-700 delay-200 ease-out cursor-pointer pointer-events-auto opacity-0 translate-y-7 text-left"
                       >
-                        <svg viewBox="0 0 36 36" className="w-[44px] h-[44px] md:w-[48px] md:h-[48px] text-[#5d66d0] group-hover:text-blue-400 shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor">
+                        <svg viewBox="0 0 36 36" className="w-[36px] h-[36px] sm:w-[44px] sm:h-[44px] md:w-[48px] md:h-[48px] text-[#5d66d0] group-hover:text-blue-400 shrink-0 mt-0.5 transition-colors" fill="none" stroke="currentColor">
                           <path
                             d="M18 3C12.5 3 8 7.5 8 13C8 20 18 27.5 18 27.5C18 27.5 28 20 28 13C28 7.5 23.5 3 18 3Z"
                             strokeWidth="1.8"
@@ -454,12 +465,12 @@ export default function App() {
                           <circle cx="18" cy="12" r="3.5" strokeWidth="1.8" />
                           <ellipse cx="18" cy="29" rx="12" ry="4" strokeWidth="1.8" />
                         </svg>
-                        <div className="space-y-1.5 min-w-0 font-condensed">
-                          <span className="text-[14.5px] text-white tracking-[0.25em] font-medium uppercase block">ĐỊA ĐIỂM</span>
-                          <p className="text-lg md:text-xl font-medium text-[#5d66d0] group-hover:text-blue-400 group-hover:underline leading-tight font-sans transition-colors flex items-center gap-1">
+                        <div className="space-y-1 sm:space-y-1.5 min-w-0 font-condensed">
+                          <span className="text-xs sm:text-[14.5px] text-white tracking-[0.2em] sm:tracking-[0.25em] font-medium uppercase block">ĐỊA ĐIỂM</span>
+                          <p className="text-base sm:text-lg md:text-xl font-medium text-[#5d66d0] group-hover:text-blue-400 group-hover:underline leading-tight font-sans transition-colors flex items-center gap-1">
                             <span>Bamos Trần Não</span>
                           </p>
-                          <p className="text-sm md:text-base text-white/90 font-light leading-relaxed font-sans">
+                          <p className="text-xs sm:text-sm md:text-base text-white/90 font-light leading-relaxed font-sans">
                             9/8 Đường số 10, Bình Khánh, An Khánh, Hồ Chí Minh
                           </p>
                         </div>

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 
 const accountId = process.env.R2_ACCOUNT_ID || '';
 const accessKeyId = process.env.R2_ACCESS_KEY_ID || '';
@@ -14,6 +14,33 @@ export const r2Client = new S3Client({
     secretAccessKey,
   },
 });
+
+export async function getBucketTotalSize(): Promise<number> {
+  if (!accountId || !accessKeyId || !secretAccessKey) {
+    return 0; // Return 0 if R2 is not configured
+  }
+
+  let totalSize = 0;
+  let isTruncated = true;
+  let continuationToken: string | undefined = undefined;
+
+  while (isTruncated) {
+    const command: ListObjectsV2Command = new ListObjectsV2Command({
+      Bucket: bucketName,
+      ContinuationToken: continuationToken,
+    });
+    const response = await r2Client.send(command);
+    if (response.Contents) {
+      for (const item of response.Contents) {
+        totalSize += item.Size || 0;
+      }
+    }
+    isTruncated = response.IsTruncated || false;
+    continuationToken = response.NextContinuationToken;
+  }
+  return totalSize;
+}
+
 
 export async function uploadToR2(
   fileBuffer: Buffer,

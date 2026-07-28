@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     
     const data = await streamToUint8Array(response.Body);
 
-    return new Response(data, {
+    return new Response(Buffer.from(data), {
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',

@@ -54,14 +54,17 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
     return () => ro.disconnect();
   }, [rowItems]);
 
-  // Smooth position & velocity reset on item filter change to avoid layout thrashing and jumpy animation
+  // Stop momentum on filter change but PRESERVE position — avoids visual jump when switching years.
+  // The wrap logic in the rAF loop normalizes xRef to the new cycleWidth within the first frame.
   useEffect(() => {
-    xRef.current = isEven ? 0 : -300;
     velocityRef.current = 0;
   }, [rowItems, isEven]);
 
+  // hasItems as boolean so rAF loop only restarts on empty↔non-empty transitions,
+  // NOT on every year filter switch (which would cause 1–2 frame drop per switch).
+  const hasItems = rowItems.length > 0;
   useEffect(() => {
-    if (rowItems.length === 0) return;
+    if (!hasItems) return;
 
     let animationId: number;
     let lastTime = performance.now();
@@ -117,14 +120,9 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
           }
         }
 
-        // 2. Perform cyclic shift wrapping (Using while to instantly normalize offset for small/new rows)
+        // Normalize to (-cycleWidth, 0] via modulo — O(1), no jitter when cycleWidth changes
         if (cycleWidth > 0) {
-          while (xRef.current <= -cycleWidth) {
-            xRef.current += cycleWidth;
-          }
-          while (xRef.current >= 0) {
-            xRef.current -= cycleWidth;
-          }
+          xRef.current = ((xRef.current % cycleWidth) - cycleWidth) % cycleWidth;
         }
 
         // 3. Render position via GPU hardware acceleration translate3d
@@ -139,7 +137,7 @@ const MarqueeRow = React.memo(function MarqueeRow({ rowItems, isEven, onItemClic
       cancelAnimationFrame(animationId);
       observer.disconnect();
     };
-  }, [isEven, rowItems]);
+  }, [isEven, hasItems]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isDraggingRef.current = true;

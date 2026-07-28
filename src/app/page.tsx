@@ -57,11 +57,8 @@ export default function App() {
   const HOME_TRACK_HEIGHT_STYLE = { height: `${HOME_TRACK_HEIGHT_VH}vh` };
 
   // Home parallax: DISABLED — hero stays sticky, timeline slides up over it
-  const timelineParallaxConfig = { freezeVh: TIMELINE_FREEZE_VH, speed: 0.5, direction: 'up' as const, maxParallaxPx: TIMELINE_MAX_PARALLAX_PX };
-
-  // Smooth lerp factor for timeline parallax (0.08 = cinematic smooth)
-  const PARALLAX_LERP = 0.08;
-  const PARALLAX_SETTLE_THRESHOLD = 0.5; // Stop rAF loop when delta < 0.5px
+  // speed: 0.25 = constant slow (1px per 4px scroll). Direct sync — no easing.
+  const timelineParallaxConfig = { freezeVh: TIMELINE_FREEZE_VH, speed: 0.25, direction: 'up' as const, maxParallaxPx: TIMELINE_MAX_PARALLAX_PX };
 
   // Thresholds for home section visibility (in vh units)
   // Hide earlier to stop painting heavy SVGs & animations when timeline covers the screen
@@ -76,10 +73,6 @@ export default function App() {
   const showLocationRef = useRef(false);
 
   const activeTabRef = useRef(activeTab);
-  // Lerp state refs (mutable, no re-render)
-  const timelineCurrentY = useRef(0);
-  const timelineTargetY = useRef(0);
-  const lerpRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -115,139 +108,113 @@ export default function App() {
       homeSectionRef.current.addEventListener('transitionend', handleTransitionEnd);
     }
 
-    // --- Lerp rAF loop: smoothly interpolates timeline parallax toward target ---
-    const lerpLoop = () => {
-      const delta = timelineTargetY.current - timelineCurrentY.current;
 
-      if (Math.abs(delta) > PARALLAX_SETTLE_THRESHOLD) {
-        // Lerp toward target
-        timelineCurrentY.current += delta * PARALLAX_LERP;
 
-        if (timelineRef.current) {
-          timelineRef.current.style.transform = `translate3d(0, ${timelineCurrentY.current}px, 0)`;
-        }
+    // MASTER ANIMATION LOOP (Persistent rAF):
+    // Scroll listener ONLY writes scrollY to a ref — zero computation.
+    // The rAF loop reads the latest scrollY every frame and applies all DOM mutations.
+    // This decouples scroll event frequency from DOM update frequency,
+    // guaranteeing exactly 1 DOM write per frame at constant speed.
+    let lastScrollY = window.scrollY;
+    let rafLoopId: number;
 
-        lerpRafRef.current = requestAnimationFrame(lerpLoop);
-      } else {
-        // Settled — snap to exact target and stop loop
-        timelineCurrentY.current = timelineTargetY.current;
-        if (timelineRef.current) {
-          timelineRef.current.style.transform = `translate3d(0, ${timelineCurrentY.current}px, 0)`;
-          // Release GPU layer when parallax settled
-          timelineRef.current.style.willChange = 'auto';
-        }
-        lerpRafRef.current = null;
-      }
-    };
-
-    const startLerp = () => {
-      // Promote to GPU layer when animating
-      if (timelineRef.current) {
-        timelineRef.current.style.willChange = 'transform';
-      }
-      if (lerpRafRef.current === null) {
-        lerpRafRef.current = requestAnimationFrame(lerpLoop);
-      }
-    };
-
-    // MASTER SCROLL HANDLER: compute targets + trigger lerp + manage visibility
-    let ticking = false;
     const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const sy = window.scrollY;
-          const vh = window.innerHeight || 1;
-          const scrollVh = sy / vh;
-          const isMobile = isMobileRef.current;
+      // Lightweight: just capture the latest scrollY position
+      lastScrollY = window.scrollY;
+    };
 
-          // --- Timeline parallax target (lerp loop will smooth it) ---
-          const timelineResult = computeParallax(sy, vh, timelineParallaxConfig);
-          timelineTargetY.current = timelineResult.parallaxY;
-          startLerp();
+    const rafLoop = () => {
+      const sy = lastScrollY;
+      const vh = window.innerHeight || 1;
+      const scrollVh = sy / vh;
+      const isMobile = isMobileRef.current;
 
-          // --- Home section opacity: CSS transition handles the fade ---
-          const currentHideThreshold = isMobile ? HOME_HIDE_THRESHOLD + 0.4 : HOME_HIDE_THRESHOLD;
-          const currentShowThreshold = isMobile ? HOME_SHOW_THRESHOLD + 0.4 : HOME_SHOW_THRESHOLD;
-
-          if (scrollVh > currentHideThreshold && homeVisibleRef.current) {
-            homeVisibleRef.current = false;
-            if (homeSectionRef.current) {
-              homeSectionRef.current.style.opacity = '0';
-              homeSectionRef.current.style.pointerEvents = 'none';
-              // visibility: hidden is set by transitionend listener (synced with CSS fade)
-            }
-          } else if (scrollVh < currentShowThreshold && !homeVisibleRef.current) {
-            homeVisibleRef.current = true;
-            if (homeSectionRef.current) {
-              homeSectionRef.current.style.visibility = 'visible';
-              homeSectionRef.current.style.opacity = '1';
-              homeSectionRef.current.style.pointerEvents = 'auto';
-            }
-          }
-
-          // Mobile Title translation (removed as per user request to keep title static)
-          if (titleContainerRef.current) {
-            titleContainerRef.current.style.transform = 'none';
-          }
-
-          // --- Stagger reveal: direct classList toggle (no React re-render) ---
-          const taglineThreshold = isMobile ? 45 : 40;
-          const buttonsThreshold = isMobile ? 45 : 40;
-          const timeThreshold = isMobile ? 120 : 120;
-          const locationThreshold = isMobile ? 120 : 200;
-
-          const newTagline = sy > taglineThreshold;
-          const newButtons = sy > buttonsThreshold;
-          const newTime = sy > timeThreshold;
-          const newLocation = sy > locationThreshold;
-
-          if (newTagline !== showTaglineRef.current) {
-            showTaglineRef.current = newTagline;
-            applyClass(taglineRef.current, newTagline, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
-          }
-          if (newButtons !== showButtonsRef.current) {
-            showButtonsRef.current = newButtons;
-            applyClass(buttonsRowRef.current, newButtons, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
-          }
-          if (newTime !== showTimeRef.current) {
-            showTimeRef.current = newTime;
-            applyClass(timeBlockRef.current, newTime, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
-          }
-          if (newLocation !== showLocationRef.current) {
-            showLocationRef.current = newLocation;
-            applyClass(locationBlockRef.current, newLocation, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
-          }
-
-          // --- Active Tab: dynamically determined based on scroll position & gallery top ---
-          const galleryTop = galleryElRef.current ? galleryElRef.current.getBoundingClientRect().top : Infinity;
-
-          let newTab: string;
-          if (sy < vh * 1.2) {
-            newTab = 'home';
-          } else if (galleryTop <= vh * 0.5) {
-            newTab = 'gallery';
-          } else {
-            newTab = 'timeline';
-          }
-
-          if (activeTabRef.current !== newTab) {
-            activeTabRef.current = newTab;
-            setActiveTab(newTab);
-          }
-
-          ticking = false;
-        });
-        ticking = true;
+      // --- Timeline parallax: constant speed, applied once per frame ---
+      const timelineResult = computeParallax(sy, vh, timelineParallaxConfig);
+      if (timelineRef.current) {
+        timelineRef.current.style.transform = `translate3d(0, ${timelineResult.parallaxY}px, 0)`;
       }
+
+      // --- Home section opacity: CSS transition handles the fade ---
+      const currentHideThreshold = isMobile ? HOME_HIDE_THRESHOLD + 0.4 : HOME_HIDE_THRESHOLD;
+      const currentShowThreshold = isMobile ? HOME_SHOW_THRESHOLD + 0.4 : HOME_SHOW_THRESHOLD;
+
+      if (scrollVh > currentHideThreshold && homeVisibleRef.current) {
+        homeVisibleRef.current = false;
+        if (homeSectionRef.current) {
+          homeSectionRef.current.style.opacity = '0';
+          homeSectionRef.current.style.pointerEvents = 'none';
+          // visibility: hidden is set by transitionend listener (synced with CSS fade)
+        }
+      } else if (scrollVh < currentShowThreshold && !homeVisibleRef.current) {
+        homeVisibleRef.current = true;
+        if (homeSectionRef.current) {
+          homeSectionRef.current.style.visibility = 'visible';
+          homeSectionRef.current.style.opacity = '1';
+          homeSectionRef.current.style.pointerEvents = 'auto';
+        }
+      }
+
+      // Mobile Title translation (removed as per user request to keep title static)
+      if (titleContainerRef.current) {
+        titleContainerRef.current.style.transform = 'none';
+      }
+
+      // --- Stagger reveal: direct classList toggle (no React re-render) ---
+      const taglineThreshold = isMobile ? 45 : 40;
+      const buttonsThreshold = isMobile ? 45 : 40;
+      const timeThreshold = isMobile ? 120 : 120;
+      const locationThreshold = isMobile ? 120 : 200;
+
+      const newTagline = sy > taglineThreshold;
+      const newButtons = sy > buttonsThreshold;
+      const newTime = sy > timeThreshold;
+      const newLocation = sy > locationThreshold;
+
+      if (newTagline !== showTaglineRef.current) {
+        showTaglineRef.current = newTagline;
+        applyClass(taglineRef.current, newTagline, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+      }
+      if (newButtons !== showButtonsRef.current) {
+        showButtonsRef.current = newButtons;
+        applyClass(buttonsRowRef.current, newButtons, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+      }
+      if (newTime !== showTimeRef.current) {
+        showTimeRef.current = newTime;
+        applyClass(timeBlockRef.current, newTime, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+      }
+      if (newLocation !== showLocationRef.current) {
+        showLocationRef.current = newLocation;
+        applyClass(locationBlockRef.current, newLocation, 'opacity-100 translate-y-0', 'opacity-0 translate-y-7');
+      }
+
+      // --- Active Tab: dynamically determined based on scroll position & gallery top ---
+      const galleryTop = galleryElRef.current ? galleryElRef.current.getBoundingClientRect().top : Infinity;
+
+      let newTab: string;
+      if (sy < vh * 1.2) {
+        newTab = 'home';
+      } else if (galleryTop <= vh * 0.5) {
+        newTab = 'gallery';
+      } else {
+        newTab = 'timeline';
+      }
+
+      if (activeTabRef.current !== newTab) {
+        activeTabRef.current = newTab;
+        setActiveTab(newTab);
+      }
+
+      rafLoopId = requestAnimationFrame(rafLoop);
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll(); // initial trigger
+    rafLoopId = requestAnimationFrame(rafLoop); // Start persistent loop
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
-      if (lerpRafRef.current) cancelAnimationFrame(lerpRafRef.current);
+      cancelAnimationFrame(rafLoopId);
       if (homeSectionRef.current) {
         homeSectionRef.current.removeEventListener('transitionend', handleTransitionEnd);
       }

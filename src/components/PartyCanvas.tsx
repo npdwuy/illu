@@ -109,7 +109,12 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
             const data = await res.json();
             if (data.success && Array.isArray(data.stickers)) {
                 setStickers(data.stickers);
-                localStorage.setItem("party_canvas_stickers", JSON.stringify(data.stickers));
+                try {
+                    localStorage.setItem("party_canvas_stickers", JSON.stringify(data.stickers));
+                } catch {
+                    // Quota exceeded — remove stale cache; server is source of truth
+                    localStorage.removeItem("party_canvas_stickers");
+                }
             } else {
                 const local = localStorage.getItem("party_canvas_stickers");
                 if (local) {
@@ -138,7 +143,12 @@ export default function PartyCanvas({ className }: PartyCanvasProps) {
 
     // Save state to database and localStorage
     const syncToDatabase = useCallback(async (updatedList: StickerItem[]) => {
-        localStorage.setItem("party_canvas_stickers", JSON.stringify(updatedList));
+        try {
+            localStorage.setItem("party_canvas_stickers", JSON.stringify(updatedList));
+        } catch {
+            // Quota exceeded — remove stale cache; server API persists the data
+            localStorage.removeItem("party_canvas_stickers");
+        }
         try {
             await fetch("/api/canvas/stickers", {
                 method: "POST",
